@@ -1,0 +1,24 @@
+# dependencies
+/node_modules
+
+# next.js / build output
+/.next
+/out
+next-env.d.ts
+*.tsbuildinfo
+
+# local backups of the data (kept off the public repo)
+/backups
+
+# excel lock files
+~$*
+
+# logs & os
+*.log
+.DS_Store
+
+# env
+.env*.local
+
+# local editor/agent config
+/.claude

@@ -1,0 +1,493 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --ink: #14161a;
+  --muted: #6b7280;
+  --line: #e6e8eb;
+  --brand: #0f766e;
+  --brand-soft: #e6f4f1;
+  --accent: #b45309;
+  --accent-soft: #fbeede;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.06);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 20px 80px;
+}
+
+/* ---------- header ---------- */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.app-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.brand-logo {
+  height: 62px;
+  width: auto;
+  display: block;
+}
+.brand-text .company-name {
+  font-size: 25px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.brand-text .doc-type {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+/* ---------- cards ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.card h2 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink);
+  margin: 0 0 14px;
+  font-weight: 700;
+}
+
+/* ---------- form ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 18px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.field label .req {
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 3px;
+}
+.form-legend {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.form-legend .req {
+  color: #dc2626;
+  font-weight: 700;
+}
+.field input,
+.field select {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus,
+.field select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+.field .hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.field input[readonly] {
+  background: #f8f9fa;
+  color: var(--muted);
+}
+
+/* ---------- summary ---------- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.summary-cell {
+  background: #fff;
+  padding: 14px 16px;
+}
+.summary-cell .k {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.summary-cell .v {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.summary-cell.total .v {
+  color: var(--brand);
+}
+.summary-cell.accent .v {
+  color: var(--accent);
+}
+
+/* ---------- table ---------- */
+.table-wrap {
+  overflow-x: auto;
+}
+table.schedule {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+table.schedule th,
+table.schedule td {
+  text-align: right;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+table.schedule th:first-child,
+table.schedule td:first-child,
+table.schedule th:nth-child(2),
+table.schedule td:nth-child(2) {
+  text-align: left;
+}
+table.schedule thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--line);
+}
+table.schedule tbody tr:hover {
+  background: #fafbfc;
+}
+.row-dp td:first-child {
+  font-weight: 600;
+}
+.row-dp {
+  background: var(--brand-soft);
+}
+.year-divider td {
+  background: #f2f4f6;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+table.schedule tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--line);
+  border-bottom: none;
+  padding-top: 12px;
+}
+.code-chip {
+  display: inline-block;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- extras ---------- */
+.extras-table th,
+.extras-table td {
+  text-align: right;
+}
+.extras-table th:first-child,
+.extras-table td:first-child {
+  text-align: left;
+}
+
+/* ---------- actions ---------- */
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+button.btn {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 18px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.05s, background 0.15s, border-color 0.15s;
+}
+button.btn:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: var(--brand);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #0c5e57;
+}
+.btn-ghost {
+  background: #fff;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.btn-ghost:hover {
+  border-color: #cdd2d8;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+/* ---------- unit information ---------- */
+.info-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 40px;
+}
+@media (max-width: 700px) {
+  .info-cols {
+    grid-template-columns: 1fr;
+  }
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 0;
+  border-bottom: 1px solid #f0f1f3;
+  font-size: 14px;
+}
+.info-row .k {
+  color: var(--muted);
+}
+.info-row .v {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+.info-row .v.strong {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+/* ---------- banners ---------- */
+.banner {
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+.banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.banner-warn {
+  background: #fdf6e3;
+  border-color: #efd9a0;
+  color: #7a5b00;
+}
+.banner-info {
+  background: #eef4fb;
+  border-color: #cfe0f4;
+  color: #2f5582;
+}
+.data-source {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.data-source code {
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 12px;
+  background: #f2f4f6;
+  border-radius: 6px;
+  padding: 1px 6px;
+}
+
+/* logo space-filler — print only (see @media print) */
+.page-filler {
+  display: none;
+}
+
+/* ---------- print ---------- */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  /* each section is its own page; the filler takes whatever vertical space is
+     left and centres a faint logo in it (collapses to nothing on a full page) */
+  .print-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 232mm;
+    break-after: page;
+  }
+  .print-page-last {
+    break-after: auto;
+  }
+  .page-filler {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 8mm 0;
+  }
+  .page-logo {
+    max-width: 48%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    opacity: 0.12;
+  }
+  /* Keep every background/highlight when printing to PDF (browsers strip them
+     by default — this is what makes the DP and Year rows disappear). */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body {
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .page {
+    max-width: none;
+    padding: 0;
+  }
+  .card {
+    box-shadow: none;
+    border: 1px solid #d7dadf;
+    break-inside: avoid;
+    margin-bottom: 10px;
+    padding: 14px 16px;
+  }
+  .card h2 {
+    margin-bottom: 10px;
+  }
+
+  /* header (logo + company name) prints once at the top of page 1 */
+  .app-header {
+    margin-bottom: 18px;
+  }
+
+  /* one section per page — the page break lives on .print-page. */
+  .schedule-card {
+    break-inside: auto; /* allow a long schedule to flow to a 2nd page */
+    padding: 8px 12px;
+  }
+  .schedule-card h2 {
+    margin-bottom: 6px;
+  }
+  /* sized to fill one page while still fitting the longest (~32-installment)
+     schedule with a safety margin (measured: ~961px of a 1032px A4 page) */
+  .schedule-card table.schedule {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+  .schedule-card table.schedule th,
+  .schedule-card table.schedule td {
+    padding: 2.5px 8px;
+  }
+  .schedule-card .year-divider td {
+    padding: 2px 8px;
+  }
+  .schedule-card table.schedule tfoot td {
+    padding-top: 5px;
+  }
+  table.schedule thead {
+    display: table-header-group;
+  }
+  table.schedule tr {
+    break-inside: avoid;
+  }
+  table.schedule tbody tr:hover {
+    background: transparent;
+  }
+
+  /* force the highlight colours to render in the PDF */
+  .row-dp {
+    background: var(--brand-soft) !important;
+  }
+  .year-divider td {
+    background: #f2f4f6 !important;
+  }
+  .info-row .v.strong {
+    color: var(--accent) !important;
+  }
+  .summary-cell.total .v {
+    color: var(--brand) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .form-grid,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
