@@ -12,7 +12,6 @@ import {
   percent,
   formatDate,
   setCurrency,
-  addMonths,
   monthsToYears,
 } from "@/lib/format";
 
@@ -416,7 +415,7 @@ export default function Page() {
                     {plan.deliveryMonths > 0 && (
                       <InfoRow
                         k="Delivery"
-                        v={`${monthsToYears(plan.deliveryMonths)} — ${formatDate(addMonths(today, plan.deliveryMonths))}`}
+                        v={monthsToYears(plan.deliveryMonths)}
                       />
                     )}
                   </div>
