@@ -373,109 +373,267 @@ button.btn:active {
   padding: 1px 6px;
 }
 
-/* logo space-filler — print only (see @media print) */
-.page-filler {
+/* logo space-filler + print-only chrome (letterhead, running header, footer,
+   totals ledger) — all hidden on screen, shown only in the PDF */
+.page-filler,
+.print-only {
   display: none;
 }
 
 /* ---------- print ---------- */
 @media print {
-  /* Force A4 so phones render a proper page instead of a tall, viewport-width
-     one (which split the schedule across pages). */
   @page {
     size: A4;
     margin: 12mm;
   }
-  /* Each section starts on a new page. Using break-before on every page after
-     the first (instead of min-height + break-after) avoids the trailing/blank
-     pages some browsers — especially mobile — produce. */
-  .print-page + .print-page {
-    break-before: page;
-  }
-  /* faint logo sitting in the empty space below short sections (only rendered
-     by React when there's room, so it can never push to a new page) */
-  .page-filler {
-    display: block;
-    text-align: center;
-    margin-top: 26mm;
-  }
-  .page-logo {
-    width: 45%;
-    max-width: 320px;
-    height: auto;
-    opacity: 0.1;
-  }
-  /* Keep every background/highlight when printing to PDF (browsers strip them
-     by default — this is what makes the DP and Year rows disappear). */
+
+  /* keep every background/highlight when printing to PDF */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
+
+  /* Forest + Gold palette — SCOPED to print, so on-screen colours don't change */
+  .page {
+    --ink: #16181d;
+    --ink-soft: #3c4048;
+    --muted: #717783;
+    --line: #e4e6ea;
+    --line-strong: #cfd2d8;
+    --brand: #1d3b32; /* deep forest */
+    --brand-soft: #eef3f0;
+    --accent: #a9813c; /* gold */
+    --accent-soft: #f6efe1;
+  }
+
   html,
   body {
     background: #fff;
-    /* Pin the print layout to the real A4 content width (210mm − 2×12mm
-       margins). Without this, mobile browsers lay the page out at the phone's
-       viewport width and then scale it up to A4, which makes everything taller
-       and splits the schedule across pages. Desktop already uses ~this width,
-       so it's unaffected. */
+    /* Pin the print layout to the real A4 content width so mobile lays out like
+       desktop (otherwise it uses the phone viewport width and overflows). */
     width: 186mm;
   }
   .no-print {
     display: none !important;
   }
-  /* sections hidden on the mobile *screen* must always appear in the PDF */
+  /* sections hidden on the mobile screen must always appear in the PDF */
   .mobile-hide {
     display: block !important;
   }
+  .print-only {
+    display: block;
+  }
+  .app-header {
+    display: none; /* replaced by the letterhead inside page 1 */
+  }
+
   .page {
     width: 186mm;
     max-width: 186mm;
     margin: 0 auto;
     padding: 0;
+    counter-reset: sec;
   }
+
+  /* each section is its own A4 page; the −4mm buffer below the full content
+     height stops a full page from tipping into a blank second page (esp. mobile) */
+  .print-page {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(297mm - 24mm - 4mm);
+  }
+  .print-page + .print-page {
+    break-before: page;
+  }
+
   .card {
     box-shadow: none;
-    border: 1px solid #d7dadf;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    margin: 0 0 9mm;
     break-inside: avoid;
-    margin-bottom: 10px;
-    padding: 14px 16px;
   }
-  .card h2 {
-    margin-bottom: 10px;
-  }
-
-  /* header (logo + company name) prints once at the top of page 1 */
-  .app-header {
-    margin-bottom: 18px;
-  }
-
-  /* one section per page — the page break lives on .print-page. */
   .schedule-card {
-    break-inside: auto; /* allow a long schedule to flow to a 2nd page */
-    padding: 8px 12px;
+    break-inside: auto;
+    padding: 0;
+    margin-bottom: 0; /* only card on its page — reclaim the space for the table */
   }
-  .schedule-card h2 {
-    margin-bottom: 6px;
+
+  /* auto-numbered section headers: 01 — UNIT INFORMATION … */
+  .card h2 {
+    counter-increment: sec;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 4.5mm;
+    padding: 0;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink);
   }
-  /* sized to fill one page while still fitting the longest (~32-installment)
-     schedule with a safety margin (measured: ~961px of a 1032px A4 page) */
-  .schedule-card table.schedule {
+  .card h2::before {
+    content: counter(sec, decimal-leading-zero) "  —";
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    text-transform: none;
+  }
+
+  /* letterhead (page 1) */
+  .lh-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding-bottom: 6mm;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .letterhead .brand-logo {
+    height: 17mm;
+    width: auto;
+    display: block;
+  }
+  .lh-tag {
+    text-align: right;
+  }
+  .lh-tag .tag-k {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .lh-tag .tag-v {
     font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 3px;
+  }
+  .lh-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 7mm 0 13mm;
+  }
+  .lh-title h1 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 500;
+    letter-spacing: -0.012em;
+    color: var(--ink);
+  }
+  .lh-title .lh-issued {
+    font-size: 10px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* running header (pages 2–3) */
+  .runhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 4mm;
+    margin-bottom: 7mm;
+    border-bottom: 1px solid var(--line);
+  }
+  .runhead .rh-mark {
+    height: 8mm;
+    width: auto;
+    display: block;
+  }
+  .runhead .rh-doc {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* unit information */
+  .info-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16mm;
+  }
+  .info-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 7.5px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 11.5px;
+  }
+  .info-row .k {
+    color: var(--muted);
+  }
+  .info-row .v {
+    font-weight: 500;
+    color: var(--ink);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  /* the last row of the right column = the emphasised Final Unit Price */
+  .info-cols .info-col:last-child .info-row:last-child {
+    margin-top: 2mm;
+    padding-top: 4mm;
+    border-top: 1.5px solid var(--ink);
+    border-bottom: none;
+  }
+  .info-cols .info-col:last-child .info-row:last-child .k {
+    color: var(--ink);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+  }
+  .info-cols .info-col:last-child .info-row:last-child .v {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--brand);
+  }
+
+  /* schedule table — 9.5px keeps the longest plan (~42 rows) on one A4 page with
+     a generous safety margin (≈95px on the reference at 43 rows), so it also
+     survives mobile rendering once combined with the A4 width pinning above */
+  table.schedule {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    font-size: 9.5px;
     line-height: 1.2;
   }
-  .schedule-card table.schedule th,
-  .schedule-card table.schedule td {
-    padding: 2.5px 8px;
+  table.schedule th,
+  table.schedule td {
+    text-align: right;
+    padding: 3px 9px;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--line);
   }
-  .schedule-card .year-divider td {
-    padding: 2px 8px;
-  }
-  .schedule-card table.schedule tfoot td {
-    padding-top: 5px;
+  table.schedule th:first-child,
+  table.schedule td:first-child,
+  table.schedule th:nth-child(2),
+  table.schedule td:nth-child(2) {
+    text-align: left;
   }
   table.schedule thead {
     display: table-header-group;
+  }
+  table.schedule thead th {
+    font-size: 8.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-top: 0;
+    padding-bottom: 5px;
+    border-bottom: 1.5px solid var(--ink);
   }
   table.schedule tr {
     break-inside: avoid;
@@ -483,19 +641,147 @@ button.btn:active {
   table.schedule tbody tr:hover {
     background: transparent;
   }
-
-  /* force the highlight colours to render in the PDF */
+  .code-chip {
+    font-family: "DM Mono", ui-monospace, monospace;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
   .row-dp {
     background: var(--brand-soft) !important;
   }
+  .row-dp td {
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .row-dp td:first-child {
+    box-shadow: inset 2px 0 0 var(--brand);
+  }
   .year-divider td {
-    background: #f2f4f6 !important;
+    background: #f7f8f9 !important;
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 3px 9px;
+    text-align: left;
   }
-  .info-row .v.strong {
-    color: var(--accent) !important;
+  table.schedule tfoot td {
+    font-weight: 700;
+    font-size: 11px;
+    color: var(--ink);
+    border-top: 1.5px solid var(--ink);
+    border-bottom: none;
+    padding-top: 8px;
   }
-  .summary-cell.total .v {
-    color: var(--brand) !important;
+  table.schedule tfoot td:first-child {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10px;
+  }
+
+  /* totals — dotted-leader ledger (print only; the screen keeps its grid) */
+  .totals {
+    margin-left: auto;
+    width: 88mm;
+    max-width: 100%;
+  }
+  .tot-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .tot-row .k {
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tot-row .lead {
+    flex: 1;
+    border-bottom: 1px dotted var(--line-strong);
+    transform: translateY(-3px);
+    min-width: 12px;
+  }
+  .tot-row .v {
+    font-weight: 500;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .tot-grand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-top: 3mm;
+    padding-top: 4mm;
+    border-top: 1.5px solid var(--ink);
+    position: relative;
+  }
+  .tot-grand::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 2.5px;
+    border-top: 0.5px solid var(--ink);
+  }
+  .tot-grand .k {
+    color: var(--ink);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .tot-grand .v {
+    margin-left: auto;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* faint logo filling the empty space on short pages */
+  .page-filler {
+    display: block;
+    margin-top: auto;
+    text-align: center;
+    padding-top: 10mm;
+  }
+  .page-logo {
+    width: 42%;
+    max-width: 300px;
+    height: auto;
+    opacity: 0.06;
+  }
+
+  /* footer (every page) */
+  .doc-footer {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-top: 4mm;
+    border-top: 1px solid var(--line);
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+  .doc-footer .ft-co {
+    font-weight: 600;
+    color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .doc-footer .ft-disc {
+    flex: 1;
+  }
+  .doc-footer .ft-page {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 }
 

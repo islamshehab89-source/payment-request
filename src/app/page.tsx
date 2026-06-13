@@ -18,6 +18,8 @@ import {
 // Static assets sit under the GitHub Pages sub-path when deployed (empty locally).
 const ASSET_BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
 const LOGO_SRC = `${ASSET_BASE}/logo.webp`;
+// transparent black wordmark — used faint (watermark) and small (running header)
+const LOGO_DARK_SRC = `${ASSET_BASE}/logo-dark.png`;
 
 function distinct(values: (string | null)[]): string[] {
   const out: string[] = [];
@@ -397,6 +399,23 @@ export default function Page() {
 
               {/* ===== PRINT PAGE 1: Unit Information ===== */}
               <div className="print-page">
+              {/* letterhead — PDF only */}
+              <header className="letterhead print-only">
+                <div className="lh-top">
+                  {logoOk && (
+                    <img src={LOGO_SRC} alt="" className="brand-logo" />
+                  )}
+                  <div className="lh-tag">
+                    <div className="tag-k">Reservation</div>
+                    <div className="tag-v">Customer copy</div>
+                  </div>
+                </div>
+                <div className="lh-title">
+                  <h1>Payment Request</h1>
+                  <div className="lh-issued">Issued {formatDate(today)}</div>
+                </div>
+              </header>
+
               {/* ---------------- unit information ---------------- */}
               <section className="card unit-card">
                 <h2>Unit Information</h2>
@@ -459,10 +478,25 @@ export default function Page() {
                 </div>
               </section>
               <PageLogo show={logoOk} />
+              <footer className="doc-footer print-only">
+                <span className="ft-co">
+                  {companyName || "Al Ahly Sabbour Developments"}
+                </span>
+                <span className="ft-disc">
+                  — This Payment Request is a price proposal and does not
+                  constitute a contract.
+                </span>
+                <span className="ft-page">Page 1 of 3</span>
+              </footer>
               </div>
 
               {/* ===== PRINT PAGE 2: Payment Schedule ===== */}
               <div className="print-page">
+              {/* running header — PDF only */}
+              <header className="runhead print-only">
+                {logoOk && <img src={LOGO_DARK_SRC} alt="" className="rh-mark" />}
+                <span className="rh-doc">Payment Request · {project.name}</span>
+              </header>
               {/* ---------------- schedule ---------------- */}
               <section className="card schedule-card mobile-hide">
                 <h2>Payment Schedule</h2>
@@ -471,10 +505,25 @@ export default function Page() {
                 </div>
               </section>
               <PageLogo show={logoOk && !scheduleFillsPage} />
+              <footer className="doc-footer print-only">
+                <span className="ft-co">
+                  {companyName || "Al Ahly Sabbour Developments"}
+                </span>
+                <span className="ft-disc">
+                  — Instalment due dates are calculated from the reservation
+                  date and are subject to the signed contract.
+                </span>
+                <span className="ft-page">Page 2 of 3</span>
+              </footer>
               </div>
 
               {/* ===== PRINT PAGE 3: Maintenance + Totals ===== */}
               <div className="print-page print-page-last">
+              {/* running header — PDF only */}
+              <header className="runhead print-only">
+                {logoOk && <img src={LOGO_DARK_SRC} alt="" className="rh-mark" />}
+                <span className="rh-doc">Payment Request · {project.name}</span>
+              </header>
               {/* ---------------- maintenance ---------------- */}
               {result.maintenanceTotal > 0 && (
                 <section className="card mobile-hide">
@@ -520,13 +569,41 @@ export default function Page() {
               {/* ---------------- totals ---------------- */}
               <section className="card">
                 <h2>Totals</h2>
-                <div className="summary-grid">
+                {/* screen keeps the existing summary grid (unchanged) */}
+                <div className="summary-grid no-print">
                   <Cell k="Final Unit Price" v={money(result.finalPrice)} />
                   <Cell k="Maintenance" v={money(result.maintenanceTotal)} />
                   <Cell k="Grand Total" v={money(result.grandTotal)} total />
                 </div>
+                {/* PDF gets a dotted-leader ledger */}
+                <div className="totals print-only">
+                  <div className="tot-row">
+                    <span className="k">Final Unit Price</span>
+                    <span className="lead" />
+                    <span className="v">{money(result.finalPrice)}</span>
+                  </div>
+                  <div className="tot-row">
+                    <span className="k">Maintenance</span>
+                    <span className="lead" />
+                    <span className="v">{money(result.maintenanceTotal)}</span>
+                  </div>
+                  <div className="tot-grand">
+                    <span className="k">Grand Total</span>
+                    <span className="v">{money(result.grandTotal)}</span>
+                  </div>
+                </div>
               </section>
               <PageLogo show={logoOk} />
+              <footer className="doc-footer print-only">
+                <span className="ft-co">
+                  {companyName || "Al Ahly Sabbour Developments"}
+                </span>
+                <span className="ft-disc">
+                  — Thank you for choosing Al Ahly Sabbour. Figures are valid as
+                  of the issue date above.
+                </span>
+                <span className="ft-page">Page 3 of 3</span>
+              </footer>
               </div>
             </>
           )}
@@ -543,7 +620,7 @@ function PageLogo({ show }: { show: boolean }) {
   if (!show) return null;
   return (
     <div className="page-filler" aria-hidden="true">
-      <img src={LOGO_SRC} alt="" className="page-logo" />
+      <img src={LOGO_DARK_SRC} alt="" className="page-logo" />
     </div>
   );
 }
