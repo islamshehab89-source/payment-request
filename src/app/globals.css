@@ -414,6 +414,12 @@ button.btn:active {
   html,
   body {
     background: #fff;
+    /* Pin the print layout to the real A4 content width (210mm − 2×12mm
+       margins). Without this, mobile browsers lay the page out at the phone's
+       viewport width and then scale it up to A4, which makes everything taller
+       and splits the schedule across pages. Desktop already uses ~this width,
+       so it's unaffected. */
+    width: 186mm;
   }
   .no-print {
     display: none !important;
@@ -423,7 +429,9 @@ button.btn:active {
     display: block !important;
   }
   .page {
-    max-width: none;
+    width: 186mm;
+    max-width: 186mm;
+    margin: 0 auto;
     padding: 0;
   }
   .card {

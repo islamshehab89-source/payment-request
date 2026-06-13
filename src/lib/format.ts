@@ -56,6 +56,13 @@ export function parseInputDate(s: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+// 48 → "4 Years", 12 → "1 Year", 42 → "3.5 Years", 30 → "2.5 Years".
+export function monthsToYears(months: number): string {
+  const y = Math.round((months / 12) * 10) / 10;
+  const label = Number.isInteger(y) ? String(y) : y.toFixed(1);
+  return `${label} ${y === 1 ? "Year" : "Years"}`;
+}
+
 export function addMonths(date: Date, months: number): Date {
   const d = new Date(date.getTime());
   const day = d.getDate();

@@ -7,7 +7,14 @@ import {
   type LoadResult,
 } from "@/lib/loadProjects";
 import { computeSchedule, type ScheduleResult } from "@/lib/schedule";
-import { money, percent, formatDate, setCurrency, addMonths } from "@/lib/format";
+import {
+  money,
+  percent,
+  formatDate,
+  setCurrency,
+  addMonths,
+  monthsToYears,
+} from "@/lib/format";
 
 // Static assets sit under the GitHub Pages sub-path when deployed (empty locally).
 const ASSET_BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -409,7 +416,7 @@ export default function Page() {
                     {plan.deliveryMonths > 0 && (
                       <InfoRow
                         k="Delivery"
-                        v={`${plan.deliveryMonths} months — ${formatDate(addMonths(today, plan.deliveryMonths))}`}
+                        v={`${monthsToYears(plan.deliveryMonths)} — ${formatDate(addMonths(today, plan.deliveryMonths))}`}
                       />
                     )}
                   </div>
