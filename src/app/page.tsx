@@ -8,7 +8,6 @@ import {
 } from "@/lib/loadProjects";
 import { computeSchedule, type ScheduleResult } from "@/lib/schedule";
 import { money, percent, formatDate, setCurrency, addMonths } from "@/lib/format";
-import { exportToExcel } from "@/lib/exportExcel";
 
 // Static assets sit under the GitHub Pages sub-path when deployed (empty locally).
 const ASSET_BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -147,20 +146,6 @@ export default function Page() {
     setUnitType("");
     setUnitArea("");
     setOutdoorArea("");
-  }
-
-  async function onExportExcel() {
-    if (!result || !project || !plan) return;
-    await exportToExcel(result, {
-      projectName: project.name,
-      planLabel: plan.label,
-      unitStatus: plan.type,
-      phase: plan.phase,
-      unitType,
-      unitArea: area,
-      outdoorArea: outdoor,
-      contractDate: today,
-    });
   }
 
   const companyName = data?.companyName ?? "";
@@ -398,9 +383,6 @@ export default function Page() {
                 >
                   <span className="only-desktop">Print / Save PDF</span>
                   <span className="only-mobile">Save as PDF</span>
-                </button>
-                <button className="btn btn-ghost" onClick={onExportExcel}>
-                  Export Excel
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>
                   Reset

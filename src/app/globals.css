@@ -107,6 +107,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0; /* let the field shrink inside the grid instead of overflowing */
 }
 .field label {
   font-size: 13px;
@@ -138,6 +139,13 @@ body {
   padding: 10px 12px;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+  /* keep long option text from stretching the control past the screen */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.field select {
+  text-overflow: ellipsis;
 }
 .field input:focus,
 .field select:focus {
@@ -372,7 +380,10 @@ button.btn:active {
 
 /* ---------- print ---------- */
 @media print {
+  /* Force A4 so phones render a proper page instead of a tall, viewport-width
+     one (which split the schedule across pages). */
   @page {
+    size: A4;
     margin: 12mm;
   }
   /* Each section starts on a new page. Using break-before on every page after
