@@ -405,10 +405,6 @@ export default function Page() {
                   {logoOk && (
                     <img src={LOGO_SRC} alt="" className="brand-logo" />
                   )}
-                  <div className="lh-tag">
-                    <div className="tag-k">Reservation</div>
-                    <div className="tag-v">Customer copy</div>
-                  </div>
                 </div>
                 <div className="lh-title">
                   <h1>Payment Request</h1>

@@ -435,12 +435,13 @@ button.btn:active {
     counter-reset: sec;
   }
 
-  /* each section is its own A4 page; the −4mm buffer below the full content
-     height stops a full page from tipping into a blank second page (esp. mobile) */
+  /* each section is its own A4 page. NO min-height: pinning the page to the full
+     A4 height made mobile browsers spill every page into a blank second page.
+     Content is always shorter than one page, so a plain content-height block +
+     a page break before each section is enough — and never produces blanks. */
   .print-page {
     display: flex;
     flex-direction: column;
-    min-height: calc(297mm - 24mm - 4mm);
   }
   .print-page + .print-page {
     break-before: page;
