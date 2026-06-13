@@ -1,9 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Payment Request",
   description: "Generate a payment schedule and request for a unit reservation.",
+};
+
+// Ensures mobile browsers render at device width instead of a zoomed-out
+// desktop width (otherwise the layout looks broken on phones).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

@@ -375,33 +375,24 @@ button.btn:active {
   @page {
     margin: 12mm;
   }
-  /* each section is its own page; the filler takes whatever vertical space is
-     left and centres a faint logo in it (collapses to nothing on a full page) */
-  .print-page {
-    display: flex;
-    flex-direction: column;
-    min-height: 232mm;
-    break-after: page;
+  /* Each section starts on a new page. Using break-before on every page after
+     the first (instead of min-height + break-after) avoids the trailing/blank
+     pages some browsers — especially mobile — produce. */
+  .print-page + .print-page {
+    break-before: page;
   }
-  .print-page-last {
-    break-after: auto;
-  }
+  /* faint logo sitting in the empty space below short sections (only rendered
+     by React when there's room, so it can never push to a new page) */
   .page-filler {
-    display: flex;
-    flex: 1 1 0;
-    min-height: 0;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    padding: 8mm 0;
+    display: block;
+    text-align: center;
+    margin-top: 26mm;
   }
   .page-logo {
-    max-width: 48%;
-    max-height: 100%;
-    width: auto;
+    width: 45%;
+    max-width: 320px;
     height: auto;
-    object-fit: contain;
-    opacity: 0.12;
+    opacity: 0.1;
   }
   /* Keep every background/highlight when printing to PDF (browsers strip them
      by default — this is what makes the DP and Year rows disappear). */
@@ -415,6 +406,10 @@ button.btn:active {
   }
   .no-print {
     display: none !important;
+  }
+  /* sections hidden on the mobile *screen* must always appear in the PDF */
+  .mobile-hide {
+    display: block !important;
   }
   .page {
     max-width: none;
@@ -485,9 +480,59 @@ button.btn:active {
   }
 }
 
-@media (max-width: 720px) {
+/* responsive label swap (used by the PDF button) */
+.only-mobile {
+  display: none;
+}
+
+/* ---------- mobile (screen only) ---------- */
+@media screen and (max-width: 768px) {
+  .page {
+    padding: 16px 14px 56px;
+  }
   .form-grid,
-  .summary-grid {
+  .summary-grid,
+  .info-cols {
     grid-template-columns: 1fr;
+  }
+  .app-header {
+    gap: 10px;
+  }
+  .app-header .brand {
+    gap: 12px;
+  }
+  .brand-logo {
+    height: 46px;
+  }
+  .brand-text .company-name {
+    font-size: 20px;
+  }
+  .card {
+    padding: 16px;
+  }
+
+  /* on the small screen the big tables are unwieldy — hide them here but keep
+     them in the PDF (print media is unaffected by this screen rule) */
+  .mobile-hide {
+    display: none !important;
+  }
+
+  /* PDF button: drop the word "Print" on mobile */
+  .only-desktop {
+    display: none;
+  }
+  .only-mobile {
+    display: inline;
+  }
+
+  .actions {
+    gap: 8px;
+  }
+  button.btn {
+    flex: 1 1 auto;
+    padding: 12px 14px;
+  }
+  .info-row {
+    font-size: 13.5px;
   }
 }

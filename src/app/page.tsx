@@ -182,7 +182,6 @@ export default function Page() {
             <div className="doc-type">Payment Request</div>
           </div>
         </div>
-        <span className="brand-badge no-print">Reservation tool</span>
       </header>
 
       {!data && (
@@ -364,12 +363,6 @@ export default function Page() {
                 />
               </div>
             </div>
-            {data.source === "excel" && (
-              <p className="data-source">
-                Projects loaded from <code>public/projects.xlsx</code> — edit the
-                file, save, and refresh this page.
-              </p>
-            )}
           </section>
 
           {!result && (
@@ -403,7 +396,8 @@ export default function Page() {
                   className="btn btn-primary"
                   onClick={() => window.print()}
                 >
-                  Print / Save PDF
+                  <span className="only-desktop">Print / Save PDF</span>
+                  <span className="only-mobile">Save as PDF</span>
                 </button>
                 <button className="btn btn-ghost" onClick={onExportExcel}>
                   Export Excel
@@ -482,7 +476,7 @@ export default function Page() {
               {/* ===== PRINT PAGE 2: Payment Schedule ===== */}
               <div className="print-page">
               {/* ---------------- schedule ---------------- */}
-              <section className="card schedule-card">
+              <section className="card schedule-card mobile-hide">
                 <h2>Payment Schedule</h2>
                 <div className="table-wrap">
                   <ScheduleTable result={result} />
@@ -495,7 +489,7 @@ export default function Page() {
               <div className="print-page print-page-last">
               {/* ---------------- maintenance ---------------- */}
               {result.maintenanceTotal > 0 && (
-                <section className="card">
+                <section className="card mobile-hide">
                   <h2>
                     Maintenance — {percent(plan.maintenancePct)} of{" "}
                     {plan.maintenanceBasis === "original"
