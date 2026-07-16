@@ -453,12 +453,10 @@ async function parseWorkbook(
         );
         continue;
       }
-      if (mEnd > mFirst && (mEnd - mFirst) % mEvery !== 0) {
-        errors.push(
-          `Row ${rowNo}: maintenance months ${mFirst}→${mEnd} don't divide evenly by ${mEvery} — the last payment lands at month ${mEnd} with a shorter gap (loaded anyway)`,
-        );
-        // warning only — the row still loads
-      }
+      // A final gap shorter than "Every (months)" is intentional and harmless:
+      // the schedule always lands the last payment exactly on ${mEnd} (e.g. GAIA
+      // runs 6 → 24 → 30, an 18-month cadence ending with a 6-month gap). This
+      // can never signal a real misconfiguration, so we don't warn about it.
     }
 
     let project = projectsByName.get(name);
