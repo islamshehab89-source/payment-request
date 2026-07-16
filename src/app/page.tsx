@@ -230,7 +230,7 @@ export default function Page() {
               {typeOptions.length > 0 && (
                 <div className="field">
                   <label htmlFor="status">
-                    Unit Status <span className="req">*</span>
+                    Payment Status <span className="req">*</span>
                   </label>
                   <select
                     id="status"
@@ -423,7 +423,7 @@ export default function Page() {
                     {outdoor > 0 && (
                       <InfoRow k="Outdoor Area" v={`${outdoor} m²`} />
                     )}
-                    {plan.type && <InfoRow k="Unit Status" v={plan.type} />}
+                    {plan.type && <InfoRow k="Payment Status" v={plan.type} />}
                     {plan.phase && <InfoRow k="Phase" v={plan.phase} />}
                     <InfoRow k="Payment Plan" v={plan.label} />
                     <InfoRow k="Date" v={formatDate(today)} />
