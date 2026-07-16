@@ -112,16 +112,35 @@ export default function Page() {
     });
   }, [plan, price, area, today]);
 
-  // The schedule "fills" a printed page once it has enough rows (installments +
-  // down payments + one divider per year). When it does, no logo is added to
-  // that page; short schedules (e.g. cash) leave room and get the logo.
-  const scheduleFillsPage = (() => {
-    if (!result) return true;
+  // Rows the printed schedule renders: one per payment + one "Year N" divider
+  // per installment year.
+  const scheduleRowCount = (() => {
+    if (!result) return 0;
     const years = new Set(
       result.rows.filter((r) => r.year > 0).map((r) => r.year),
     ).size;
-    const printRows = result.rows.length + years; // body rows + year dividers
-    return printRows > 30;
+    return result.rows.length + years; // body rows + year dividers
+  })();
+
+  // The schedule "fills" a printed page once it has enough rows (installments +
+  // down payments + one divider per year). When it does, no logo is added to
+  // that page; short schedules (e.g. cash) leave room and get the logo.
+  const scheduleFillsPage = scheduleRowCount === 0 || scheduleRowCount > 30;
+
+  // Keep the whole Payment Schedule on ONE A4 page. A long plan (e.g. the
+  // 10-year plan = 41 payments + 10 year dividers = 51 rows) would otherwise
+  // spill a couple of rows onto a second sheet. Shrink just the table — via a
+  // print-only zoom — by exactly enough to fit, leaving shorter plans untouched.
+  // Calibrated against the printed layout: page height ≈ CHROME (running header +
+  // section title + footer, which don't scale) + zoom × table height, where the
+  // table is ≈ 18px per row + 37px for its own head/foot; budget one A4 content
+  // box (~1032px) with a safety margin.
+  const scheduleZoom = (() => {
+    if (scheduleRowCount === 0) return 1;
+    const BUDGET = 1000; // usable px on one A4 page (with margin for rounding)
+    const CHROME = 138; // running header + section title + footer
+    const tableHeight = 18 * scheduleRowCount + 37;
+    return Math.max(0.6, Math.min(1, (BUDGET - CHROME) / tableHeight));
   })();
 
   // Switching project = a different unit: clear the unit-specific inputs too.
@@ -494,7 +513,10 @@ export default function Page() {
                 <span className="rh-doc">Payment Request · {project.name}</span>
               </header>
               {/* ---------------- schedule ---------------- */}
-              <section className="card schedule-card mobile-hide">
+              <section
+                className="card schedule-card mobile-hide"
+                style={{ ["--sched-zoom" as string]: String(scheduleZoom) }}
+              >
                 <h2>Payment Schedule</h2>
                 <div className="table-wrap">
                   <ScheduleTable result={result} />
