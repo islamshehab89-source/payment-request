@@ -610,6 +610,11 @@ button.btn:active {
     font-size: 9.5px;
     line-height: 1.2;
   }
+  /* Long schedules (e.g. the 10-year plan) are shrunk just enough to stay on one
+     A4 page. --sched-zoom is set per-plan in the page (1 = no shrink). */
+  .schedule-card table.schedule {
+    zoom: var(--sched-zoom, 1);
+  }
   table.schedule th,
   table.schedule td {
     text-align: right;
