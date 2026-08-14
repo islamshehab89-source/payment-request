@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   loadProjects,
   loadFailedResult,
@@ -29,6 +30,9 @@ function distinct(values: (string | null)[]): string[] {
 
 // One A4 sheet across, in CSS pixels (210mm at the fixed 96dpi CSS inch).
 const A4_WIDTH_PX = (210 * 96) / 25.4;
+// preview chrome: the gap above the first sheet and the room the bar needs
+const PV_TOP_GAP = 10;
+const PV_BAR_SPACE = 96;
 
 // The whole PDF layout lives in the stylesheet's `@media print` block. The
 // mobile preview shows that same block switched on for the screen, so the
@@ -72,6 +76,8 @@ export default function Page() {
   // Mobile PDF preview (the desktop button still prints straight away).
   const [preview, setPreview] = useState(false);
   const scrollBack = useRef(0);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -211,14 +217,25 @@ export default function Page() {
     // opening an empty-looking page.
     if (window.matchMedia("(max-width: 768px)").matches && pdfStyleBlock()) {
       scrollBack.current = window.scrollY;
+      // The preview is a full-screen view, and on a phone the way out of one is
+      // the Back gesture. Give it a history entry of its own, or Back leaves the
+      // site altogether — taking the filled-in form with it.
+      window.history.pushState({ pv: 1 }, "");
       setPreview(true);
     } else {
       window.print();
     }
   }
 
+  // Every exit runs through history, so the entry above is consumed exactly
+  // once whether the user tapped ←, pressed Escape, or swiped back.
+  function closePreview() {
+    if (window.history.state?.pv) window.history.back();
+    else setPreview(false);
+  }
+
   // While the preview is open the print stylesheet drives the screen too, and
-  // one A4 sheet is scaled down to fit the phone's width.
+  // the full-size A4 sheets are scaled down to fit the phone's width.
   useEffect(() => {
     if (!preview) return;
     const root = document.documentElement;
@@ -226,28 +243,77 @@ export default function Page() {
     if (block) block.media.mediaText = "all";
     root.classList.add("pv-open");
 
-    // clientWidth (not innerWidth) so a scrollbar never pushes the sheet off
-    // the screen; the observer re-fits when one appears or on rotation.
-    const fit = () =>
-      root.style.setProperty(
-        "--pv-zoom",
-        String(Math.min(1, (root.clientWidth - 20) / A4_WIDTH_PX)),
-      );
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPreview(false);
+    // The sheets are laid out at full A4 and only *drawn* smaller, so nothing
+    // re-wraps or re-fits. Their layout height ignores the transform, so the
+    // page's own scroll height has to be the scaled one. clientWidth (not
+    // innerWidth) keeps a scrollbar from pushing a sheet off the screen.
+    const fit = () => {
+      const scale = String(Math.min(1, (root.clientWidth - 16) / A4_WIDTH_PX));
+      const height = pageRef.current?.offsetHeight ?? 0;
+      const docHeight = `${Math.ceil(height * parseFloat(scale)) + PV_TOP_GAP + PV_BAR_SPACE}px`;
+      // Only write when something actually changed: --pv-doc-h becomes body's
+      // height, which resizes <html> — the box the observer below watches.
+      if (root.style.getPropertyValue("--pv-scale") !== scale)
+        root.style.setProperty("--pv-scale", scale);
+      if (root.style.getPropertyValue("--pv-doc-h") !== docHeight)
+        root.style.setProperty("--pv-doc-h", docHeight);
     };
+
+    // Keep the bar on the part of the screen the user can actually see: a
+    // phone's browser UI slides the layout viewport around, and pinch-zoom
+    // moves and magnifies it. Anchoring the dock to the visual viewport — and
+    // scaling it back down — keeps the bar put, and the same size throughout.
+    const vv = window.visualViewport;
+    const pinBar = () => {
+      const dock = dockRef.current;
+      if (!dock || !vv) return;
+      dock.style.width = `${vv.width * vv.scale}px`;
+      dock.style.height = `${vv.height * vv.scale}px`;
+      dock.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closePreview();
+    };
+    const onPop = () => setPreview(false); // Back gesture, or our own back()
     fit();
+    pinBar();
     window.scrollTo(0, 0);
-    const observer = new ResizeObserver(fit);
+
+    // Re-fit on rotation, and again once the web fonts land — they change how
+    // tall the sheets are. fit() runs a frame later than the observation that
+    // triggered it, so writing a value that resizes <html> can never come back
+    // as an undelivered ResizeObserver notification.
+    let open = true;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    });
     observer.observe(root);
+    if (pageRef.current) observer.observe(pageRef.current);
+    document.fonts?.ready
+      .then(() => {
+        if (open) fit(); // the preview may already be closed by then
+      })
+      .catch(() => {});
+    vv?.addEventListener("resize", pinBar);
+    vv?.addEventListener("scroll", pinBar);
     window.addEventListener("keydown", onKey);
+    window.addEventListener("popstate", onPop);
 
     return () => {
+      open = false;
+      cancelAnimationFrame(frame);
       observer.disconnect();
+      vv?.removeEventListener("resize", pinBar);
+      vv?.removeEventListener("scroll", pinBar);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("popstate", onPop);
       if (block) block.media.mediaText = "print";
       root.classList.remove("pv-open");
-      root.style.removeProperty("--pv-zoom");
+      root.style.removeProperty("--pv-scale");
+      root.style.removeProperty("--pv-doc-h");
       const y = scrollBack.current;
       requestAnimationFrame(() => window.scrollTo(0, y));
     };
@@ -256,7 +322,7 @@ export default function Page() {
   const companyName = data?.companyName ?? "";
 
   return (
-    <div className="page">
+    <div className="page" ref={pageRef}>
       <header className="app-header">
         <div className="brand">
           {logoOk && (
@@ -699,27 +765,35 @@ export default function Page() {
               </footer>
               </div>
 
-              {/* preview bar — mobile only, sits outside the scaled sheets */}
-              {preview && (
-                <div className="pv-bar no-print">
-                  <button
-                    type="button"
-                    className="pv-back"
-                    onClick={() => setPreview(false)}
-                    aria-label="Back to the form"
-                  >
-                    ←
-                  </button>
-                  <span className="pv-hint">Pinch to zoom</span>
-                  <button
-                    type="button"
-                    className="btn btn-primary pv-save"
-                    onClick={() => window.print()}
-                  >
-                    Save PDF
-                  </button>
-                </div>
-              )}
+              {/* Preview bar — mobile only. It lives on <body>, not in .page:
+                  a transformed ancestor becomes the containing block for its
+                  fixed children, which would drag the bar around with the
+                  scaled sheets. The effect above pins the dock to the part of
+                  the viewport the user can actually see. */}
+              {preview &&
+                createPortal(
+                  <div className="pv-dock no-print" ref={dockRef}>
+                    <div className="pv-bar">
+                      <button
+                        type="button"
+                        className="pv-back"
+                        onClick={closePreview}
+                        aria-label="Back to the form"
+                      >
+                        ←
+                      </button>
+                      <span className="pv-hint">Pinch to zoom</span>
+                      <button
+                        type="button"
+                        className="btn btn-primary pv-save"
+                        onClick={() => window.print()}
+                      >
+                        Save PDF
+                      </button>
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </>
           )}
         </>

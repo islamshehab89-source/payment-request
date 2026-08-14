@@ -852,11 +852,25 @@ button.btn:active {
 
 /* ---------- PDF preview (mobile, screen only) ----------
    Tapping "Preview" switches the @media print block above on for the screen
-   (see page.tsx), so the preview *is* the PDF rather than a copy of it. The
-   rules here only add what a screen needs around it — a backdrop, an A4 sheet
-   per printed page, and a scale that fits one sheet across the phone. Every
-   rule is @media screen, so none of it can reach the printed PDF. */
+   (see page.tsx), so the preview *is* the PDF rather than a copy of it.
+
+   The sheet is laid out at full A4 and only *drawn* smaller, with transform —
+   never `zoom`. zoom re-runs layout at the shrunken size, which rounds every
+   font, padding and column differently: the same schedule came out 928px tall
+   on screen against 871px in print, and long labels wrapped where the PDF
+   keeps them on one line. transform can't do that: it scales the finished
+   layout, so what you see is the printout, pixel for pixel.
+
+   Everything here is @media screen, so none of it can reach the PDF. */
 @media screen {
+  html.pv-open {
+    /* Explicit on BOTH axes: it stops the sheet's full-size layout box from
+       widening the page (a phone would answer that by zooming the whole thing
+       out to fit), and it keeps body's own `hidden` from propagating up here
+       and killing the scroll. */
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
   html.pv-open,
   html.pv-open body {
     width: auto;
@@ -864,22 +878,41 @@ button.btn:active {
     background: #59616e;
   }
   html.pv-open body {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    /* The sheets are out of the flow, so body carries the height the scaled
+       document needs (measured in page.tsx) and clips what hangs outside. */
+    position: relative;
+    height: var(--pv-doc-h, auto);
+    overflow: hidden;
+    padding: 0;
   }
   html.pv-open .page {
-    width: auto;
+    position: absolute;
+    top: 10px;
+    /* centre the FULL-SIZE box on the screen's middle, then scale towards that
+       same middle. (`left/right: 0` + `margin: auto` cannot do it: when the box
+       is wider than its container the auto margins collapse to 0 and the sheet
+       lands off to the right.) */
+    left: 50%;
+    margin-left: -105mm; /* half of A4 */
+    width: 210mm;
     max-width: none;
-    padding: 12px 0 0;
+    padding: 0;
+    transform: scale(var(--pv-scale, 1));
+    transform-origin: top center;
   }
-  /* one printed page = one A4 sheet, scaled down to the screen width */
+  /* one printed page = one A4 sheet */
   html.pv-open .print-page {
-    zoom: var(--pv-zoom, 1);
     width: 210mm;
     min-height: 297mm;
     padding: 12mm; /* the @page margin, drawn */
-    margin: 0 auto 24px;
+    margin: 0 0 6mm;
     background: #fff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+    box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.35);
+  }
+  /* a wide table can be swiped sideways on a screen; in the PDF it cannot
+     move at all, so pin it */
+  html.pv-open .table-wrap {
+    overflow: visible;
   }
   /* the PDF ends a short page wherever its content ends — keep the preview
      honest about that instead of pushing the footer down to the sheet edge */
@@ -888,24 +921,37 @@ button.btn:active {
     margin-top: 0;
   }
 
-  /* the bar is the only chrome over the sheets: back + one Save PDF button.
-     It carries .no-print, so printing from the preview never includes it —
-     this rule just outranks that while the print block is on for the screen. */
-  html.pv-open .pv-bar {
+  /* The bar is the only chrome over the sheets: back + one Save PDF button.
+     It hangs off a dock that page.tsx keeps pinned to the *visible* part of
+     the screen — a phone's browser UI slides the layout viewport around and
+     pinch-zoom moves it again, both of which push a plain bottom-fixed bar
+     out of sight. 100dvh is the fallback for browsers without visualViewport.
+     The bar carries .no-print, so printing from the preview never includes
+     it; the rule below just outranks that while the print block is on. */
+  html.pv-open .pv-dock {
     display: flex !important;
   }
-  .pv-bar {
+  .pv-dock {
     position: fixed;
     left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 20;
+    top: 0;
+    width: 100%;
+    height: 100dvh;
+    display: flex;
+    align-items: flex-end;
+    transform-origin: 0 0;
+    pointer-events: none;
+    z-index: 30;
+  }
+  .pv-bar {
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.97);
     border-top: 1px solid var(--line);
+    pointer-events: auto;
   }
   .pv-back {
     font-family: inherit;

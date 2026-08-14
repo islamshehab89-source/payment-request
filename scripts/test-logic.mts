@@ -115,7 +115,9 @@ if (!finished7y) {
   check("ref: net price", r.netPrice, 970_000);
   check("ref: finishing cost", r.finishingCost, 400_000);
   check("ref: final price", r.finalPrice, 1_370_000);
-  check("ref: 31 installments", r.rows.filter((x) => x.code.startsWith("INS")).length, 31);
+  // mirrors the sheet's Installments Count for this plan (7 years × 4 − 1);
+  // update it here when that column changes in projects.xlsx
+  check("ref: 27 installments", r.rows.filter((x) => x.code.startsWith("INS")).length, 27);
   // first maintenance Jun 2026 + 15 months = Sep 2027
   check(
     "ref: maintenance first month",

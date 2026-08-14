@@ -84,4 +84,17 @@ Logic tests: `scripts/test-logic.mts`.
   PDF: opening it switches the stylesheet's `@media print` block on for the screen, so what you
   scroll through is the printout itself. Nothing in the preview can change the PDF — its own
   styling (backdrop, sheets, scaling, bar) lives entirely in `@media screen`.
+
+  Two details keep it honest, both worth knowing before editing `globals.css`:
+  - The sheets are scaled with **`transform: scale()`, never `zoom`**. `zoom` re-runs layout at the
+    shrunken size and rounds every font, padding and column differently — the same schedule measured
+    928px on screen against 871px in print, and long labels wrapped where the PDF keeps them on one
+    line. `transform` scales the finished layout, so the preview cannot drift from the printout.
+  - The bar sits in a `.pv-dock` portalled onto `<body>` and pinned to `window.visualViewport`. It
+    can't live inside `.page`, whose transform would become the containing block for its fixed
+    children, and a plain `bottom: 0` bar slides out of sight when the phone's browser UI moves or
+    the user pinch-zooms.
+  - Opening the preview pushes a history entry, so Android's Back gesture (and iOS' edge swipe)
+    closes it instead of leaving the site with the form filled in. Every exit — the `←` button,
+    Escape, the gesture — goes through `history.back()`, so the entry is consumed exactly once.
 - **Export Excel** — Unit Information + payment schedule + maintenance schedule (SheetJS).
