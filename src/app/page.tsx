@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   loadProjects,
   loadFailedResult,
@@ -27,6 +27,31 @@ function distinct(values: (string | null)[]): string[] {
   return out;
 }
 
+// One A4 sheet across, in CSS pixels (210mm at the fixed 96dpi CSS inch).
+const A4_WIDTH_PX = (210 * 96) / 25.4;
+
+// The whole PDF layout lives in the stylesheet's `@media print` block. The
+// mobile preview shows that same block switched on for the screen, so the
+// preview can never drift from the PDF. The block is found by the `@page` rule
+// inside it — the only one in the app.
+function pdfStyleBlock(): CSSMediaRule | null {
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue; // cross-origin (Google Fonts) — never ours
+    }
+    for (const rule of Array.from(rules))
+      if (
+        rule instanceof CSSMediaRule &&
+        Array.from(rule.cssRules).some((r) => r.cssText.startsWith("@page"))
+      )
+        return rule;
+  }
+  return null;
+}
+
 export default function Page() {
   const [data, setData] = useState<LoadResult | null>(null);
   const [logoOk, setLogoOk] = useState(true);
@@ -43,6 +68,10 @@ export default function Page() {
   const [unitType, setUnitType] = useState(""); // e.g. "3BR" — informational
   const [unitArea, setUnitArea] = useState("");
   const [outdoorArea, setOutdoorArea] = useState(""); // informational
+
+  // Mobile PDF preview (the desktop button still prints straight away).
+  const [preview, setPreview] = useState(false);
+  const scrollBack = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -174,6 +203,55 @@ export default function Page() {
     setUnitArea("");
     setOutdoorArea("");
   }
+
+  // Phones get a preview of the PDF first — the print dialog is one tap away
+  // from there. Desktop keeps going straight to Print / Save PDF.
+  function onPdfButton() {
+    // no print block to switch on = no preview to show: print instead of
+    // opening an empty-looking page.
+    if (window.matchMedia("(max-width: 768px)").matches && pdfStyleBlock()) {
+      scrollBack.current = window.scrollY;
+      setPreview(true);
+    } else {
+      window.print();
+    }
+  }
+
+  // While the preview is open the print stylesheet drives the screen too, and
+  // one A4 sheet is scaled down to fit the phone's width.
+  useEffect(() => {
+    if (!preview) return;
+    const root = document.documentElement;
+    const block = pdfStyleBlock();
+    if (block) block.media.mediaText = "all";
+    root.classList.add("pv-open");
+
+    // clientWidth (not innerWidth) so a scrollbar never pushes the sheet off
+    // the screen; the observer re-fits when one appears or on rotation.
+    const fit = () =>
+      root.style.setProperty(
+        "--pv-zoom",
+        String(Math.min(1, (root.clientWidth - 20) / A4_WIDTH_PX)),
+      );
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(false);
+    };
+    fit();
+    window.scrollTo(0, 0);
+    const observer = new ResizeObserver(fit);
+    observer.observe(root);
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("keydown", onKey);
+      if (block) block.media.mediaText = "print";
+      root.classList.remove("pv-open");
+      root.style.removeProperty("--pv-zoom");
+      const y = scrollBack.current;
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    };
+  }, [preview]);
 
   const companyName = data?.companyName ?? "";
 
@@ -404,12 +482,9 @@ export default function Page() {
 
               {/* ---------------- actions ---------------- */}
               <div className="actions no-print">
-                <button
-                  className="btn btn-primary"
-                  onClick={() => window.print()}
-                >
+                <button className="btn btn-primary" onClick={onPdfButton}>
                   <span className="only-desktop">Print / Save PDF</span>
-                  <span className="only-mobile">Save as PDF</span>
+                  <span className="only-mobile">Preview</span>
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>
                   Reset
@@ -623,6 +698,28 @@ export default function Page() {
                 <span className="ft-page">Page 3 of 3</span>
               </footer>
               </div>
+
+              {/* preview bar — mobile only, sits outside the scaled sheets */}
+              {preview && (
+                <div className="pv-bar no-print">
+                  <button
+                    type="button"
+                    className="pv-back"
+                    onClick={() => setPreview(false)}
+                    aria-label="Back to the form"
+                  >
+                    ←
+                  </button>
+                  <span className="pv-hint">Pinch to zoom</span>
+                  <button
+                    type="button"
+                    className="btn btn-primary pv-save"
+                    onClick={() => window.print()}
+                  >
+                    Save PDF
+                  </button>
+                </div>
+              )}
             </>
           )}
         </>

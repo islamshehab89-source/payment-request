@@ -796,14 +796,16 @@ button.btn:active {
   display: none;
 }
 
-/* ---------- mobile (screen only) ---------- */
+/* ---------- mobile (screen only) ----------
+   Rules that fight the print layout are skipped while the PDF preview is open
+   (html.pv-open), so the preview shows the print block's own values. */
 @media screen and (max-width: 768px) {
   .page {
     padding: 16px 14px 56px;
   }
   .form-grid,
   .summary-grid,
-  .info-cols {
+  html:not(.pv-open) .info-cols {
     grid-template-columns: 1fr;
   }
   .app-header {
@@ -818,13 +820,13 @@ button.btn:active {
   .brand-text .company-name {
     font-size: 20px;
   }
-  .card {
+  html:not(.pv-open) .card {
     padding: 16px;
   }
 
   /* on the small screen the big tables are unwieldy — hide them here but keep
-     them in the PDF (print media is unaffected by this screen rule) */
-  .mobile-hide {
+     them in the PDF and in its preview */
+  html:not(.pv-open) .mobile-hide {
     display: none !important;
   }
 
@@ -843,7 +845,85 @@ button.btn:active {
     flex: 1 1 auto;
     padding: 12px 14px;
   }
-  .info-row {
+  html:not(.pv-open) .info-row {
     font-size: 13.5px;
+  }
+}
+
+/* ---------- PDF preview (mobile, screen only) ----------
+   Tapping "Preview" switches the @media print block above on for the screen
+   (see page.tsx), so the preview *is* the PDF rather than a copy of it. The
+   rules here only add what a screen needs around it — a backdrop, an A4 sheet
+   per printed page, and a scale that fits one sheet across the phone. Every
+   rule is @media screen, so none of it can reach the printed PDF. */
+@media screen {
+  html.pv-open,
+  html.pv-open body {
+    width: auto;
+    max-width: none;
+    background: #59616e;
+  }
+  html.pv-open body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  html.pv-open .page {
+    width: auto;
+    max-width: none;
+    padding: 12px 0 0;
+  }
+  /* one printed page = one A4 sheet, scaled down to the screen width */
+  html.pv-open .print-page {
+    zoom: var(--pv-zoom, 1);
+    width: 210mm;
+    min-height: 297mm;
+    padding: 12mm; /* the @page margin, drawn */
+    margin: 0 auto 24px;
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.32);
+  }
+  /* the PDF ends a short page wherever its content ends — keep the preview
+     honest about that instead of pushing the footer down to the sheet edge */
+  html.pv-open .page-filler,
+  html.pv-open .doc-footer {
+    margin-top: 0;
+  }
+
+  /* the bar is the only chrome over the sheets: back + one Save PDF button.
+     It carries .no-print, so printing from the preview never includes it —
+     this rule just outranks that while the print block is on for the screen. */
+  html.pv-open .pv-bar {
+    display: flex !important;
+  }
+  .pv-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid var(--line);
+  }
+  .pv-back {
+    font-family: inherit;
+    font-size: 19px;
+    line-height: 1;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 15px;
+    cursor: pointer;
+  }
+  .pv-hint {
+    font-size: 12.5px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .pv-save {
+    margin-left: auto;
   }
 }

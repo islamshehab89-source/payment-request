@@ -79,4 +79,9 @@ Logic tests: `scripts/test-logic.mts`.
 
 - **Print / Save PDF** — browser print dialog with a clean print stylesheet. Row highlights are
   preserved in the PDF (`print-color-adjust: exact`) and the schedule prints compactly.
+- **Preview** (phones, ≤768px) — the same button shows the three A4 pages on screen first, each
+  scaled to the phone's width, with a single **Save PDF** button. The preview is not a copy of the
+  PDF: opening it switches the stylesheet's `@media print` block on for the screen, so what you
+  scroll through is the printout itself. Nothing in the preview can change the PDF — its own
+  styling (backdrop, sheets, scaling, bar) lives entirely in `@media screen`.
 - **Export Excel** — Unit Information + payment schedule + maintenance schedule (SheetJS).
