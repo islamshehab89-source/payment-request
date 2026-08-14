@@ -259,17 +259,30 @@ export default function Page() {
         root.style.setProperty("--pv-doc-h", docHeight);
     };
 
-    // Keep the bar on the part of the screen the user can actually see: a
-    // phone's browser UI slides the layout viewport around, and pinch-zoom
-    // moves and magnifies it. Anchoring the dock to the visual viewport — and
-    // scaling it back down — keeps the bar put, and the same size throughout.
+    // Keep the bar on the part of the screen the user can actually see. Two
+    // different things move it: the phone's browser UI sliding in and out, and
+    // pinch-zoom. CSS `height: 100dvh` handles the first — do NOT overwrite it
+    // with the visual viewport's height, which on iOS does not shrink when
+    // Safari's bottom toolbar expands and leaves the bar behind it.
     const vv = window.visualViewport;
     const pinBar = () => {
       const dock = dockRef.current;
-      if (!dock || !vv) return;
-      dock.style.width = `${vv.width * vv.scale}px`;
-      dock.style.height = `${vv.height * vv.scale}px`;
-      dock.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
+      if (!dock) return;
+      dock.style.width = "";
+      dock.style.height = "";
+      dock.style.transform = "";
+      if (!vv) return;
+      if (Math.abs(vv.scale - 1) > 0.01) {
+        // pinch-zoomed: the layout viewport is no longer what's on screen, so
+        // put the dock on the visible rectangle and scale it back to size
+        dock.style.width = `${vv.width * vv.scale}px`;
+        dock.style.height = `${vv.height * vv.scale}px`;
+        dock.style.transform = `translate(${vv.offsetLeft}px, ${vv.offsetTop}px) scale(${1 / vv.scale})`;
+      } else if (vv.height < dock.clientHeight - 1) {
+        // ...and where an engine shrinks the visual viewport instead of dvh,
+        // take whichever of the two is shorter
+        dock.style.height = `${vv.height}px`;
+      }
     };
 
     const onKey = (e: KeyboardEvent) => {

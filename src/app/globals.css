@@ -870,6 +870,13 @@ button.btn:active {
        and killing the scroll. */
     overflow-x: hidden;
     overflow-y: auto;
+    /* Phone browsers inflate text that sits in a block far wider than the
+       screen — and an A4 sheet on a phone is exactly that. On iOS it blew the
+       footer line up until it overlapped itself and pushed the schedule past
+       the edge of the paper, while the printed PDF (never inflated) stayed
+       correct. Turning the inflation off is what keeps the two identical. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   html.pv-open,
   html.pv-open body {
@@ -936,6 +943,10 @@ button.btn:active {
     left: 0;
     top: 0;
     width: 100%;
+    /* dvh is the height that shrinks when the phone's browser UI slides in —
+       the one thing that keeps the bar off Safari's bottom toolbar. vh is the
+       fallback for browsers without it. */
+    height: 100vh;
     height: 100dvh;
     display: flex;
     align-items: flex-end;
@@ -948,7 +959,7 @@ button.btn:active {
     align-items: center;
     gap: 10px;
     width: 100%;
-    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.97);
     border-top: 1px solid var(--line);
     pointer-events: auto;

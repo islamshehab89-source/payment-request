@@ -97,4 +97,11 @@ Logic tests: `scripts/test-logic.mts`.
   - Opening the preview pushes a history entry, so Android's Back gesture (and iOS' edge swipe)
     closes it instead of leaving the site with the form filled in. Every exit — the `←` button,
     Escape, the gesture — goes through `history.back()`, so the entry is consumed exactly once.
+  - `html.pv-open` sets `text-size-adjust: 100%`. Phone browsers inflate text inside blocks far
+    wider than the screen, and an A4 sheet on a phone is exactly that: on iOS the footer line grew
+    until it overlapped itself and the schedule ran off the paper, while the PDF stayed correct.
+    Neither effect reproduces in desktop Chrome's device emulation — check real Safari.
+  - The dock's height is CSS `100dvh`, and `pinBar()` only overrides it when pinch-zoomed (or when
+    the visual viewport is shorter still). Writing `visualViewport.height` there unconditionally
+    puts the bar behind Safari's bottom toolbar, which does not shrink that height when it expands.
 - **Export Excel** — Unit Information + payment schedule + maintenance schedule (SheetJS).
