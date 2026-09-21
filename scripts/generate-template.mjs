@@ -40,13 +40,14 @@ const HEAD = [
   "Ending Installment Maintenance Due (months)",
   "Maintenance Every (months)",
   "Maintenance Basis",
+  "Status",
 ];
 
 // All % columns are plain numbers in percent units: 10 = 10%, 0.99 = 0.99%.
 const ROWS = [
-  ["Sample Project", "Core & Shell", null, null, "Cash", 0, 25, "Selling price", 100, 0, 0, 0, 0, 0, 10, 42, 15, 39, 6, "Original Price"],
-  [null, "Core & Shell", null, null, "5% & 5% & 8 years", 8, 0, "Original Price", 5, 5, 3, 31, 3, 3, 10, 42, 15, 39, 6, "Original Price"],
-  [null, "Finished", 20000, null, "5% & 5% & 7 years", 7, 3, "Original Price", 5, 5, 3, 31, 3, 3, 10, 42, 15, 39, 6, "Selling price"],
+  ["Sample Project", "Core & Shell", null, null, "Cash", 0, 25, "Selling price", 100, 0, 0, 0, 0, 0, 10, 42, 15, 39, 6, "Original Price", "Active"],
+  [null, "Core & Shell", null, null, "5% & 5% & 8 years", 8, 0, "Original Price", 5, 5, 3, 31, 3, 3, 10, 42, 15, 39, 6, "Original Price", "Active"],
+  [null, "Finished", 20000, null, "5% & 5% & 7 years", 7, 3, "Original Price", 5, 5, 3, 31, 3, 3, 10, 42, 15, 39, 6, "Selling price", "Inactive"],
 ];
 
 const projectsWs = XLSX.utils.aoa_to_sheet([HEAD, ...ROWS]);
@@ -87,6 +88,7 @@ const readmeWs = XLSX.utils.aoa_to_sheet([
   ["Ending Installment Maintenance Due (months)", "Last maintenance payment / آخر قسط صيانة"],
   ["Maintenance Every (months)", "Spacing of maintenance payments / الفترة بين أقساط الصيانة"],
   ["Maintenance Basis", "\"Original Price\" or \"Selling price\" (= final price incl. finishing) / أساس حساب الصيانة"],
+  ["Status", "\"Active\" or \"Inactive\". Inactive plans are hidden from the page; blank = Active. / حالة النظام: Inactive = مش هيظهر في الموقع"],
   ["", ""],
   ["After editing: save the file, then refresh the page in the browser.", "بعد التعديل: احفظ الملف واعمل refresh للصفحة."],
 ]);

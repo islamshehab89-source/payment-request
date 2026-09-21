@@ -39,8 +39,8 @@ type PlanTextField = "name" | "label" | "type" | "phase" | "dpBasis" | "maintena
 
 interface ColumnSpec {
   title: string; // canonical header, used in messages
-  field: PlanNumberField | PlanTextField;
-  kind: "text" | "number";
+  field: PlanNumberField | PlanTextField | "status";
+  kind: "text" | "number" | "status";
   percent?: boolean; // entered in percent units (10 = 10%), stored as fraction
   integer?: boolean; // counts and month offsets must be whole numbers
   min?: number;
@@ -69,6 +69,10 @@ const COLUMNS: Record<string, ColumnSpec> = {
   "ending installment maintenance due months": { title: "Ending Installment Maintenance Due (months)", field: "maintenanceEndDueMonths", kind: "number", integer: true, min: 0, max: 600 },
   "maintenance every months": { title: "Maintenance Every (months)", field: "maintenanceEveryMonths", kind: "number", integer: true, min: 0, max: 120 },
   "maintenance basis": { title: "Maintenance Basis", field: "maintenanceBasis", kind: "text" },
+  // Active / Inactive. Optional: without the column every plan is shown.
+  "status": { title: "Status", field: "status", kind: "status" },
+  "plan status": { title: "Status", field: "status", kind: "status" },
+  "active": { title: "Status", field: "status", kind: "status" },
 };
 
 // The sheet may reuse the header "Installment Every (months)" for the
@@ -185,6 +189,75 @@ function parseBasis(
   return null;
 }
 
+// Spellings the Status column accepts, compared on statusKey(): lower-cased,
+// spaces/punctuation and Arabic diacritics dropped, Arabic letter variants
+// unified (ة→ه, أإآ→ا, ى→ي) — so "In-active", "Not Active", "غير نشطة" all
+// match. A Google Sheets checkbox arrives as TRUE / FALSE.
+const ACTIVE_WORDS = new Set([
+  "active", "yes", "y", "true", "on", "1",
+  "نشط", "نشطه", "مفعل", "مفعله", "متاح", "متاحه", "فعال", "فعاله", "نعم",
+]);
+const INACTIVE_WORDS = new Set([
+  "inactive", "notactive", "no", "n", "false", "off", "0",
+  "غيرنشط", "غيرنشطه", "غيرمفعل", "غيرمفعله", "غيرمتاح", "غيرمتاحه",
+  "موقوف", "موقوفه", "متوقف", "متوقفه", "ملغي", "لا",
+]);
+
+function statusKey(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "") // harakat, shadda, tatweel
+    .replace(/\u0629/g, "\u0647") // ة → ه
+    .replace(/[\u0622\u0623\u0625]/g, "\u0627") // آ أ إ → ا
+    .replace(/\u0649/g, "\u064A") // ى → ي
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, "");
+}
+
+type StatusClass = "active" | "inactive" | "blank" | "unknown" | "error";
+
+function classifyStatus(cell: SheetCell | undefined): StatusClass {
+  if (cell == null) return "blank";
+  if (cell.t === "e") return "error"; // before the v check: SheetJS may leave v unset
+  if (cell.v == null) return "blank";
+  if (typeof cell.v === "boolean") return cell.v ? "active" : "inactive";
+  const raw = String(cell.v).trim();
+  if (raw === "") return "blank";
+  const key = statusKey(raw);
+  if (ACTIVE_WORDS.has(key)) return "active";
+  if (INACTIVE_WORDS.has(key)) return "inactive";
+  return "unknown";
+}
+
+// A blank Status cell means Active, so existing rows keep showing. Anything
+// unrecognized hides the plan (a plan someone meant to retire must never stay
+// on the page because of a typo) and is reported.
+function readStatus(
+  cell: SheetCell | undefined,
+  rowNo: number,
+  errors: string[],
+): "active" | "inactive" {
+  const cls = classifyStatus(cell);
+  if (cls === "active" || cls === "blank") return "active";
+  if (cls === "inactive") return "inactive";
+  errors.push(
+    cls === "error"
+      ? `Row ${rowNo}: "Status" contains an Excel error (${typeof cell?.w === "string" ? cell.w : "#N/A"}) — the plan is hidden until you fix it`
+      : `Row ${rowNo}: "Status" must be "Active" or "Inactive" (got "${String(cell?.v).trim()}") — the plan is hidden until you fix it`,
+  );
+  return "inactive";
+}
+
+// True for a cell that reads as the word Active / Inactive itself (not just
+// yes/no/1/0/TRUE), used to spot a Status column whose header wasn't recognized.
+function isStatusWord(cell: SheetCell | undefined): boolean {
+  if (cell == null || cell.t === "e" || typeof cell.v !== "string") return false;
+  const key = statusKey(cell.v);
+  return (
+    (ACTIVE_WORDS.has(key) || INACTIVE_WORDS.has(key)) &&
+    (key.includes("active") || key.includes("\u0646\u0634\u0637")) // "active" / "نشط"
+  );
+}
+
 // Last-resort result for callers when even loadProjects() itself rejects
 // (e.g. the xlsx code chunk failed to download).
 export function loadFailedResult(): LoadResult {
@@ -287,11 +360,14 @@ async function parseWorkbook(
   // "Installment Every (months)" is the maintenance spacing column.
   const range = XLSX.utils.decode_range(ws["!ref"]);
   const colSpec = new Map<number, ColumnSpec>();
-  const unknownHeaders: string[] = [];
+  const unknownCols: { c: number; header: string }[] = []; // header "" = blank
   const seenFields = new Set<string>();
   for (let c = range.s.c; c <= range.e.c; c++) {
     const cell = directCell(range.s.r, c);
-    if (cell == null || cell.v == null || String(cell.v).trim() === "") continue;
+    if (cell == null || cell.v == null || String(cell.v).trim() === "") {
+      unknownCols.push({ c, header: "" });
+      continue;
+    }
     const norm = normalizeHeader(String(cell.v));
     let spec = COLUMNS[norm];
     if (spec && seenFields.has(spec.field)) {
@@ -308,7 +384,7 @@ async function parseWorkbook(
       colSpec.set(c, spec);
       seenFields.add(spec.field);
     } else {
-      unknownHeaders.push(String(cell.v).trim());
+      unknownCols.push({ c, header: String(cell.v).trim() });
     }
   }
   if (!seenFields.has("name") || !seenFields.has("label")) {
@@ -316,6 +392,29 @@ async function parseWorkbook(
       'The "Projects" sheet is missing the "Project" or "Plan" column — showing the built-in sample projects.',
     );
   }
+  // A Status column under any other header ("Payment Status", "الحالة", or none
+  // at all) is still recognized by its contents — mostly the words Active /
+  // Inactive — so plans marked Inactive can't stay on the page because the
+  // header was worded differently.
+  if (!seenFields.has("status")) {
+    for (const { c } of unknownCols) {
+      let filled = 0;
+      let words = 0;
+      for (let r = range.s.r + 1; r <= range.e.r; r++) {
+        const cell = directCell(r, c);
+        if (classifyStatus(cell) === "blank") continue;
+        filled++;
+        if (isStatusWord(cell)) words++;
+      }
+      if (words > 0 && words * 2 >= filled) {
+        colSpec.set(c, COLUMNS["status"]);
+        seenFields.add("status");
+        unknownCols.splice(unknownCols.findIndex((u) => u.c === c), 1);
+        break;
+      }
+    }
+  }
+  const unknownHeaders = unknownCols.map((u) => u.header).filter(Boolean);
   if (unknownHeaders.length > 0) {
     errors.push(
       `Unrecognized column(s) ignored: ${unknownHeaders.map((h) => `"${h}"`).join(", ")} — check the spelling against the template headers`,
@@ -329,6 +428,14 @@ async function parseWorkbook(
       `Column(s) not found (treated as 0 for all rows): ${missingColumns.map((s) => `"${s.title}"`).join(", ")}`,
     );
   }
+
+  const colOf = (field: ColumnSpec["field"]): number | undefined => {
+    for (const [c, spec] of colSpec) if (spec.field === field) return c;
+    return undefined;
+  };
+  const nameCol = colOf("name")!; // guaranteed by the check above
+  const statusCol = colOf("status");
+  let inactiveRows = 0;
 
   const projectsByName = new Map<string, Project>();
   let lastProjectName = "";
@@ -345,8 +452,10 @@ async function parseWorkbook(
 
     // A row counts as present only if it has DIRECT content; merge-inherited
     // values alone must not conjure phantom rows.
+    // Status doesn't count: a Status filled down past the last plan is not a row.
     let hasAny = false;
-    for (const c of colSpec.keys()) {
+    for (const [c, spec] of colSpec) {
+      if (spec.kind === "status") continue;
       const cell = directCell(r, c);
       if (cell && cell.v != null && cell.v !== "") {
         hasAny = true;
@@ -355,12 +464,30 @@ async function parseWorkbook(
     }
     if (!hasAny) continue;
 
+    // An Inactive row is hidden and skipped before any other check, so a
+    // retired or half-drafted plan never raises warnings. Its Project name
+    // still carries down to the blank-Project rows below it.
+    if (
+      statusCol != null &&
+      readStatus(getCell(r, statusCol), rowNo, errors) === "inactive"
+    ) {
+      const nameCell = getCell(r, nameCol);
+      const ownName =
+        nameCell && nameCell.t !== "e" && nameCell.v != null
+          ? String(nameCell.v).trim()
+          : "";
+      if (ownName) lastProjectName = ownName;
+      inactiveRows++;
+      continue;
+    }
+
     const texts: Partial<Record<PlanTextField, string>> = {};
     const nums: Partial<Record<PlanNumberField, number>> = {};
     let rowBroken = false;
 
     for (const [c, spec] of colSpec) {
       const cell = getCell(r, c);
+      if (spec.kind === "status") continue;
       if (spec.kind === "text") {
         if (cell != null && cell.t === "e") {
           errors.push(
@@ -541,12 +668,20 @@ async function parseWorkbook(
   const projects = [...projectsByName.values()].filter(
     (p) => p.plans.length > 0,
   );
-  if (projects.length === 0) {
+  if (projects.length === 0 && inactiveRows === 0) {
     return fallback(
       "projects.xlsx contains no valid plan rows — showing the built-in sample projects.",
       errors,
     );
   }
+  // With plans switched off on purpose, the sample projects would put made-up
+  // prices in front of the sales team — show an empty list instead.
+  const notice =
+    projects.length > 0
+      ? null
+      : errors.length === 0
+        ? "Every payment plan is set to Inactive in the sheet — there are no plans to show right now."
+        : "There are no plans to show right now — every row is set to Inactive or has one of the issues listed below.";
 
   // De-duplicate ids that different names happen to slugify into.
   const seenIds = new Set<string>();
@@ -591,7 +726,7 @@ async function parseWorkbook(
     companyName,
     currency,
     source: "excel",
-    notice: null,
+    notice,
     errors,
   };
 }

@@ -38,8 +38,31 @@ only appears when the sheet has values for it; blank cells never show up.
 | `Maintenance %` + `Maintenance Basis` | Maintenance total = % × basis price |
 | `First/Ending Installment Maintenance Due (months)` + `Maintenance Every (months)` | Maintenance paid in equal installments across that window |
 | `Delivery (months)` | Months to delivery (informational) |
+| `Status` | `Active` or `Inactive` (optional, last column). **Inactive plans are hidden from the page.** Blank = Active |
 
 **All `%` columns are plain numbers in percent units: `10` = 10%.** %-formatted cells also work.
+
+### Switching a plan off — `Status`
+
+Set a row's `Status` to `Inactive` and publish: that plan disappears from the page; a project
+whose plans are all Inactive disappears from the Project list. An Inactive row is skipped before
+any other check, so it never raises warnings — you can keep a retired plan, or draft a new one,
+in the sheet without it showing. Its `Project` name still carries down to the blank-Project rows
+below it, so deactivating a project's first row is safe.
+
+- Blank = `Active`, so the column is optional and existing rows keep showing.
+- Name the header `Status`. A column worded differently (`Payment Status`, `الحالة`, or no header
+  at all) is still picked up when its cells are mostly the words Active / Inactive, so Inactive
+  plans can't stay visible over a header wording.
+- Also understood: `Yes`/`No`, a checkbox (ticked = Active), `1`/`0`, `نشط` / `غير نشط`
+  (also `نشطة`, `مفعل`, `موقوف`, `نعم` / `لا`).
+- Anything else (a typo like `Actve`) **hides** the plan and lists it in the warning banner — a
+  plan meant to be retired never stays up because of a typo.
+- A `Status` filled down past the last plan is ignored (it doesn't create empty rows).
+- If every plan is Inactive the page shows an empty Project list with a notice — never the
+  built-in sample projects.
+- Tip: give the column a dropdown in Google Sheets (Data → Data validation → Dropdown:
+  `Active`, `Inactive`) so it can't be mistyped.
 
 ### How the numbers are computed
 
