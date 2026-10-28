@@ -19,6 +19,7 @@ export interface ExcelInfo {
   unitType: string;
   unitArea: number; // 0 = not entered
   outdoorArea: number; // 0 = not entered
+  floor: string; // "" = not entered
   contractDate: Date;
 }
 
@@ -206,6 +207,14 @@ function flagTotal(ws: ExcelJS.Worksheet, cell: string, target: string) {
   });
 }
 
+// A plain floor number goes in as a number, so Excel doesn't flag it as
+// "number stored as text"; anything else ("Ground", "B1") stays text.
+function floorValue(floor: string): ExcelJS.CellValue | undefined {
+  const s = floor.trim();
+  if (!s) return undefined;
+  return /^-?(0|[1-9]\d{0,2})$/.test(s) ? Number(s) : s;
+}
+
 type InfoItem = {
   k: string;
   v?: ExcelJS.CellValue;
@@ -360,8 +369,7 @@ export function buildWorkbook(
       v: info.outdoorArea > 0 ? info.outdoorArea : undefined,
       numFmt: AREA,
     },
-    { k: "Floor" },
-    { k: "Unit No." },
+    { k: "Floor", v: floorValue(info.floor) },
   ];
   const areaRow = top + 2; // "Unit Area" above — the finishing cost uses it
   if (plan.type) left.push({ k: "Payment Status", v: plan.type });

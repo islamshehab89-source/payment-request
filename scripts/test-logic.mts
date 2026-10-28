@@ -370,6 +370,7 @@ console.log("\nExcel export:");
         unitType: "",
         unitArea: area,
         outdoorArea: 0,
+        floor: "",
         contractDate: contract,
       });
       const back = new ExcelJS.Workbook();
@@ -408,6 +409,33 @@ console.log("\nExcel export:");
     }
   }
   check(`excel: all ${plansAll} plans export with live % formulas`, plansOk, plansAll);
+
+  // Floor comes from the form (a plain number stays a number), and the sheet
+  // has no Unit No. row.
+  const p = data.projects[0];
+  const pl = p.plans[0];
+  const area = pl.buaRate > 0 ? AREA : 0;
+  const r = computeSchedule(pl, { originalPrice: PRICE, unitArea: area, contractDate: contract });
+  const unitRows = async (floor: string) => {
+    const wb = buildWorkbook(r, {
+      companyName: data.companyName,
+      projectName: p.name,
+      plan: pl,
+      unitType: "",
+      unitArea: area,
+      outdoorArea: 0,
+      floor,
+      contractDate: contract,
+    });
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(await wb.xlsx.writeBuffer());
+    const byLabel = new Map<unknown, unknown>();
+    back.worksheets[0].eachRow((row) => byLabel.set(row.getCell(1).value, row.getCell(2).value));
+    return { floor: byLabel.get("Floor"), unitNo: byLabel.has("Unit No.") };
+  };
+  check("excel: Floor text from the form", await unitRows("Ground"), { floor: "Ground", unitNo: false });
+  check("excel: Floor number stays a number", await unitRows(" 3 "), { floor: 3, unitNo: false });
+  check("excel: no Floor entered → blank row", await unitRows(""), { floor: null, unitNo: false });
 }
 
 console.log(
