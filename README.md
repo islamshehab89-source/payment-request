@@ -97,6 +97,8 @@ Logic tests: `scripts/test-logic.mts`.
   Information).
 - **Unit Area** is optional for every plan (informational); for *finished* units (a `BUA` value)
   it is required and drives the finishing cost.
+- **Floor** is optional free text (`3`, `Ground`, `B1`…). It shows in Unit Information on the page
+  and in the PDF only when filled; the Excel always has a Floor row (blank when not entered).
 
 ## Outputs
 
@@ -136,5 +138,6 @@ Logic tests: `scripts/test-logic.mts`.
     totals update. Unit Price, Discount, Unit Area and Finishing Price / m² are live too.
   - The schedule's total % turns red when the amounts no longer add up to 100%, and a negative
     remaining balance shows in red.
-  - Floor and Unit No. are left blank to fill in by hand.
+  - Floor comes from the form. A plain number (`3`) is stored as a number, so Excel doesn't flag
+    it as "number stored as text".
   - `pnpm test` exports every plan and checks the % cells are formulas on their amounts.

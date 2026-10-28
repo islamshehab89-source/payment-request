@@ -72,6 +72,7 @@ export default function Page() {
   const [unitType, setUnitType] = useState(""); // e.g. "3BR" — informational
   const [unitArea, setUnitArea] = useState("");
   const [outdoorArea, setOutdoorArea] = useState(""); // informational
+  const [floor, setFloor] = useState(""); // e.g. "3" or "Ground" — informational
 
   // Mobile PDF preview (the desktop button still prints straight away).
   const [preview, setPreview] = useState(false);
@@ -190,6 +191,7 @@ export default function Page() {
     setUnitType("");
     setUnitArea("");
     setOutdoorArea("");
+    setFloor("");
   }
   function onStatusChange(v: string) {
     setUnitStatus(v);
@@ -209,6 +211,7 @@ export default function Page() {
     setUnitType("");
     setUnitArea("");
     setOutdoorArea("");
+    setFloor("");
   }
 
   // Phones get a preview of the PDF first — the print dialog is one tap away
@@ -243,6 +246,7 @@ export default function Page() {
           unitType,
           unitArea: area,
           outdoorArea: outdoor,
+          floor: floor.trim(),
           contractDate: today,
         },
         logoOk ? LOGO_DARK_SRC : null,
@@ -559,6 +563,17 @@ export default function Page() {
                   onChange={(e) => setOutdoorArea(e.target.value)}
                 />
               </div>
+
+              <div className="field">
+                <label htmlFor="floor">Floor (optional)</label>
+                <input
+                  id="floor"
+                  type="text"
+                  placeholder="e.g. 3 or Ground"
+                  value={floor}
+                  onChange={(e) => setFloor(e.target.value)}
+                />
+              </div>
             </div>
           </section>
 
@@ -631,7 +646,8 @@ export default function Page() {
                     {outdoor > 0 && (
                       <InfoRow k="Outdoor Area" v={`${outdoor} m²`} />
                     )}
-                    {plan.type && <InfoRow k="Payment Status" v={plan.type} />}
+                    {floor.trim() && <InfoRow k="Floor" v={floor.trim()} />}
+                    {plan.type &&<InfoRow k="Payment Status" v={plan.type} />}
                     {plan.phase && <InfoRow k="Phase" v={plan.phase} />}
                     <InfoRow k="Payment Plan" v={plan.label} />
                     <InfoRow k="Date" v={formatDate(today)} />
