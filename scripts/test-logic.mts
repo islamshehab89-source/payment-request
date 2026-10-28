@@ -1,6 +1,7 @@
 // Logic tests against the REAL public/projects.xlsx through the real loader.
 // These assert INVARIANTS that must hold no matter how the sheet is edited,
-// plus the reference example from the user's screenshot. Run: pnpm test
+// plus the reference example from the user's screenshot, which has a fixed
+// sheet row of its own so price updates can't break it. Run: pnpm test
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,38 +96,6 @@ for (const p of data.projects) {
   }
 }
 console.log(`\nChecked ${planCount} plans for balance invariants.`);
-
-// -------- Reference example from the user's screenshot --------
-const mornings = data.projects.find((p) => p.name === "The Mornings_Everyday");
-const finished7y = mornings?.plans.find(
-  (p) => p.type === "Finished" && p.label.includes("7 years"),
-);
-if (!finished7y) {
-  console.log("FAIL  reference plan (Finished 7 years) not found");
-  failures++;
-} else {
-  const r = computeSchedule(finished7y, {
-    originalPrice: 1_000_000,
-    unitArea: 20,
-    contractDate: contract,
-  });
-  check("ref: BUA rate", finished7y.buaRate, 20000);
-  check("ref: discount 3%", finished7y.discountPct, 0.03);
-  check("ref: net price", r.netPrice, 970_000);
-  check("ref: finishing cost", r.finishingCost, 400_000);
-  check("ref: final price", r.finalPrice, 1_370_000);
-  // mirrors the sheet's Installments Count for this plan (7 years × 4 − 1);
-  // update it here when that column changes in projects.xlsx
-  check("ref: 27 installments", r.rows.filter((x) => x.code.startsWith("INS")).length, 27);
-  // first maintenance Jun 2026 + 15 months = Sep 2027
-  check(
-    "ref: maintenance first month",
-    r.maintenanceRows.length
-      ? `${r.maintenanceRows[0].dueDate.getFullYear()}-${r.maintenanceRows[0].dueDate.getMonth() + 1}`
-      : "none",
-    "2027-9",
-  );
-}
 
 // -------- Status column (Active / Inactive), on synthetic sheets --------
 // Each sheet is written to a real xlsx and read back through the loader, the
@@ -329,6 +298,54 @@ const plansOf = (d: Awaited<ReturnType<typeof loadProjects>>, name: string) =>
     [d.source, d.projects.length, d.notice !== null, d.errors],
     ["excel", 0, true, []],
   );
+}
+
+// -------- Reference example from the user's screenshot --------
+// The Mornings_Everyday "Finished · 5% & 5% & 7 years" plan as it was when the
+// example was worked out (the live sheet has changed it since). It sits on a
+// sheet row of its own: the price updates from Google Sheets rewrite the real
+// plans all the time, and those are covered by the invariants above. The row
+// still goes through the real loader, so "3" under Discount % must come out
+// as 3%.
+console.log("\nReference example:");
+{
+  const d = await loadSheet([
+    HEAD,
+    [
+      "The Mornings_Everyday", "Finished", 20000, "", "5% & 5% & 7 years", 7, 3,
+      "Selling price", 5, 5, 3,
+      27, 3, 6,
+      10, 42, 15,
+      39, 6,
+      "Selling price", "Active",
+    ],
+  ]);
+  check("ref: sheet row loads without warnings", d.errors, []);
+  const plan = d.projects[0]?.plans[0];
+  if (!plan) {
+    console.log("FAIL  ref: plan not loaded");
+    failures++;
+  } else {
+    const r = computeSchedule(plan, {
+      originalPrice: 1_000_000,
+      unitArea: 20,
+      contractDate: contract,
+    });
+    check("ref: BUA rate", plan.buaRate, 20000);
+    check("ref: discount 3%", plan.discountPct, 0.03);
+    check("ref: net price", r.netPrice, 970_000);
+    check("ref: finishing cost", r.finishingCost, 400_000);
+    check("ref: final price", r.finalPrice, 1_370_000);
+    check("ref: 27 installments", r.rows.filter((x) => x.code.startsWith("INS")).length, 27);
+    // first maintenance Jun 2026 + 15 months = Sep 2027
+    check(
+      "ref: maintenance first month",
+      r.maintenanceRows.length
+        ? `${r.maintenanceRows[0].dueDate.getFullYear()}-${r.maintenanceRows[0].dueDate.getMonth() + 1}`
+        : "none",
+      "2027-9",
+    );
+  }
 }
 
 // -------- Excel export: every plan, written and read back --------
