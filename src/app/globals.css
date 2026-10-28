@@ -299,6 +299,18 @@ button.btn:active {
 .btn-ghost:hover {
   border-color: #cdd2d8;
 }
+button.btn.btn-excel {
+  background: #fff;
+  border-color: var(--brand);
+  color: var(--brand);
+}
+button.btn.btn-excel:hover {
+  background: var(--brand-soft);
+}
+button.btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
 
 .empty {
   color: var(--muted);

@@ -75,6 +75,7 @@ export default function Page() {
 
   // Mobile PDF preview (the desktop button still prints straight away).
   const [preview, setPreview] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const scrollBack = useRef(0);
   const pageRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -224,6 +225,33 @@ export default function Page() {
       setPreview(true);
     } else {
       window.print();
+    }
+  }
+
+  // The Excel builder (and its library) only load when the button is pressed.
+  async function onExportExcel() {
+    if (!result || !project || !plan || exporting) return;
+    setExporting(true);
+    try {
+      const { exportToExcel } = await import("@/lib/exportExcel");
+      await exportToExcel(
+        result,
+        {
+          companyName,
+          projectName: project.name,
+          plan,
+          unitType,
+          unitArea: area,
+          outdoorArea: outdoor,
+          contractDate: today,
+        },
+        logoOk ? LOGO_DARK_SRC : null,
+      );
+    } catch (e) {
+      console.error(e);
+      alert("Couldn't create the Excel file. Please try again.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -564,6 +592,13 @@ export default function Page() {
                 <button className="btn btn-primary" onClick={onPdfButton}>
                   <span className="only-desktop">Print / Save PDF</span>
                   <span className="only-mobile">Preview</span>
+                </button>
+                <button
+                  className="btn btn-excel"
+                  onClick={onExportExcel}
+                  disabled={exporting}
+                >
+                  {exporting ? "Preparing…" : "Export Excel"}
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>
                   Reset

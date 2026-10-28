@@ -331,6 +331,68 @@ const plansOf = (d: Awaited<ReturnType<typeof loadProjects>>, name: string) =>
   );
 }
 
+// -------- Excel export: every plan, written and read back --------
+// The % / remaining / total cells must be formulas on the amount cells, so an
+// amount typed in Excel moves its %. Cached results must match the page.
+console.log("\nExcel export:");
+{
+  const ExcelJS = (await import("exceljs")).default;
+  const { buildWorkbook } = await import("../src/lib/exportExcel.ts");
+  const near = (a: unknown, b: number) => typeof a === "number" && Math.abs(a - b) < 1e-6;
+  let plansOk = 0;
+  let plansAll = 0;
+  for (const p of data.projects) {
+    for (const pl of p.plans) {
+      plansAll++;
+      const area = pl.buaRate > 0 ? AREA : 0;
+      const r = computeSchedule(pl, { originalPrice: PRICE, unitArea: area, contractDate: contract });
+      const wb = buildWorkbook(r, {
+        companyName: data.companyName,
+        projectName: p.name,
+        plan: pl,
+        unitType: "",
+        unitArea: area,
+        outdoorArea: 0,
+        contractDate: contract,
+      });
+      const back = new ExcelJS.Workbook();
+      await back.xlsx.load(await wb.xlsx.writeBuffer());
+      const ws = back.worksheets[0];
+      const label = `${p.name} / ${pl.type ?? "-"} / ${pl.label}`;
+      const problems: string[] = [];
+
+      let head = 0;
+      ws.eachRow((row, n) => {
+        if (!head && row.getCell(1).value === "Year" && row.getCell(2).value === "Payment") head = n;
+      });
+      if (!head) problems.push("no schedule header");
+
+      // the final-price cell every % divides by
+      let finalRef = "";
+      r.rows.forEach((x, i) => {
+        const n = head + 1 + i;
+        const amount = ws.getCell(n, 3).value;
+        const pct = ws.getCell(n, 5).value as { formula?: string; result?: number } | null;
+        if (ws.getCell(n, 2).value !== x.label) problems.push(`row ${n}: label`);
+        if (amount !== x.amount) problems.push(`row ${n}: amount is not the plain value`);
+        const m = /^IFERROR\(C(\d+)\/(\$E\$\d+),0\)$/.exec(pct?.formula ?? "");
+        if (!m || Number(m[1]) !== n) problems.push(`row ${n}: % is not a formula on its amount`);
+        else finalRef = m[2];
+        if (!near(pct?.result, x.percent)) problems.push(`row ${n}: % result`);
+      });
+      const fin = ws.getCell(finalRef.replace(/\$/g, "")).value as { formula?: string; result?: number } | null;
+      if (!fin?.formula || !near(fin.result, r.finalPrice))
+        problems.push(`% divides by ${finalRef}, which is not the live final price`);
+      const total = ws.getCell(head + 1 + r.rows.length, 5).value as { formula?: string; result?: number } | null;
+      if (!total?.formula?.startsWith("SUM(") || !near(total.result, 1)) problems.push("total % is not SUM = 100%");
+
+      if (problems.length) console.log(`FAIL  [${label}] excel: ${problems.join("; ")}`);
+      else plansOk++;
+    }
+  }
+  check(`excel: all ${plansAll} plans export with live % formulas`, plansOk, plansAll);
+}
+
 console.log(
   failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`,
 );

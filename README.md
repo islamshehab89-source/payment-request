@@ -127,4 +127,14 @@ Logic tests: `scripts/test-logic.mts`.
   - The dock's height is CSS `100dvh`, and `pinBar()` only overrides it when pinch-zoomed (or when
     the visual viewport is shorter still). Writing `visualViewport.height` there unconditionally
     puts the bar behind Safari's bottom toolbar, which does not shrink that height when it expands.
-- **Export Excel** — Unit Information + payment schedule + maintenance schedule (SheetJS).
+- **Export Excel** — a styled `.xlsx` in the PDF's forest + gold colours, laid out like the sales
+  team's own sheet: Unit Information, then Terms of Payment grouped by year (Year · Payment ·
+  Amount · Due Date · % · Remaining), Maintenance, and Totals. Built with ExcelJS
+  (`src/lib/exportExcel.ts`), loaded only when the button is pressed.
+  - The sheet is **live**. Amounts are plain numbers; every %, remaining balance and total is a
+    formula. Type a new amount and its % (amount ÷ final price), the balances after it and the
+    totals update. Unit Price, Discount, Unit Area and Finishing Price / m² are live too.
+  - The schedule's total % turns red when the amounts no longer add up to 100%, and a negative
+    remaining balance shows in red.
+  - Floor and Unit No. are left blank to fill in by hand.
+  - `pnpm test` exports every plan and checks the % cells are formulas on their amounts.
