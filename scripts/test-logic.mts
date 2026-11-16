@@ -61,9 +61,8 @@ for (const p of data.projects) {
       PRICE - PRICE * pl.discountPct + (pl.buaRate > 0 ? area * pl.buaRate : 0);
     check(`[${label}] final price`, Math.round(r.finalPrice), Math.round(expFinal));
 
-    // down payments on the right basis ("original" = before discount + finishing)
-    const dpBasePrice =
-      pl.dpBasis === "original" ? PRICE + r.finishingCost : r.finalPrice;
+    // down payments on the right basis
+    const dpBasePrice = pl.dpBasis === "original" ? PRICE : r.finalPrice;
     const dpRows = r.rows.filter((x) => x.code.startsWith("DP"));
     const expDpSum = Math.round(
       dpBasePrice * (pl.downPayment1Pct + pl.downPayment2Pct),
@@ -346,48 +345,6 @@ console.log("\nReference example:");
         : "none",
       "2027-9",
     );
-  }
-}
-
-// -------- Finished unit, Down Payment Type = Original Price --------
-// Unit 1000, discount 300, finishing 200: the down payments are taken on
-// 1000 + 200 = 1200 (before discount, finishing included) and the
-// installments share what is left of the 900 final price.
-console.log("\nFinished + Original Price down payment:");
-{
-  const d = await loadSheet([
-    HEAD,
-    [
-      "The Mornings (Residential)", "Finished", 20000, "", "5% & 5% & 6 years", 6, 30,
-      "Original Price", 5, 5, 3,
-      23, 3, 6,
-      10, 42, 15,
-      39, 6,
-      "Selling price", "Active",
-    ],
-  ]);
-  check("orig+fin: sheet row loads without warnings", d.errors, []);
-  const plan = d.projects[0]?.plans[0];
-  if (!plan) {
-    console.log("FAIL  orig+fin: plan not loaded");
-    failures++;
-  } else {
-    const r = computeSchedule(plan, {
-      originalPrice: 1_000_000,
-      unitArea: 10,
-      contractDate: contract,
-    });
-    const amount = (code: string) => r.rows.find((x) => x.code === code)?.amount;
-    const ins = r.rows.filter((x) => x.code.startsWith("INS"));
-    check("orig+fin: discount", r.discount, 300_000);
-    check("orig+fin: finishing cost", r.finishingCost, 200_000);
-    check("orig+fin: final price", r.finalPrice, 900_000);
-    check("orig+fin: DP1 = 5% of 1,200,000", amount("DP-1"), 60_000);
-    check("orig+fin: DP2 = 5% of 1,200,000", amount("DP-2"), 60_000);
-    check("orig+fin: installments share 900,000 − 120,000", ins.reduce((s, x) => s + x.amount, 0), 780_000);
-    check("orig+fin: 23 installments", ins.length, 23);
-    check("orig+fin: schedule total = final", r.scheduleTotal, 900_000);
-    check("orig+fin: maintenance stays on the selling price", r.maintenanceTotal, 90_000);
   }
 }
 

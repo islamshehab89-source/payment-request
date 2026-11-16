@@ -91,12 +91,8 @@ export function computeSchedule(
     });
   };
 
-  // Down payments — % of the plan's chosen base. "original" is the price
-  // before discount with the finishing cost added (1000 − 300 discount + 200
-  // finishing → DP on 1200, installments on what is left of 900); "selling" is
-  // the final price.
-  const dpBase =
-    plan.dpBasis === "original" ? original + finishingCost : finalPrice;
+  // Down payments — % of the plan's chosen base (original or final price).
+  const dpBase = plan.dpBasis === "original" ? original : finalPrice;
   const dp1 = Math.round(dpBase * plan.downPayment1Pct);
   if (dp1 > 0) {
     pushRow("DP-1", "Down Payment 1", inputs.contractDate, dp1, 0);

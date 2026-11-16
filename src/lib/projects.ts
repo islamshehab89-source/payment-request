@@ -9,8 +9,7 @@
 //   netPrice      = originalPrice − (originalPrice × discountPct)   [or override]
 //   finishingCost = unitArea × buaRate                              [0 when buaRate = 0]
 //   finalPrice    = netPrice + finishingCost
-//   downPayment1  = dpBase × downPayment1Pct     (dpBase = original + finishing,
-//                                                 or the final price)
+//   downPayment1  = dpBase × downPayment1Pct     (dpBase = original or final price)
 //   downPayment2  = dpBase × downPayment2Pct     (due monthsToDownPayment2 later)
 //   installments  = (finalPrice − dp1 − dp2) / installmentsCount, equal, spaced
 //   maintenance   = maintBase × maintenancePct, split into equal payments from
@@ -33,7 +32,7 @@ export interface Plan {
   years: number; // informational
   discountPct: number; // discount off the original price (negative = premium)
 
-  dpBasis: PriceBasis; // what the down-payment %s are taken on ("original" adds the finishing cost)
+  dpBasis: PriceBasis; // what the down-payment %s are taken on
   downPayment1Pct: number; // due at contract date
   downPayment2Pct: number; // 0 if there is no second down payment
   monthsToDownPayment2: number;
