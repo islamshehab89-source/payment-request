@@ -32,7 +32,7 @@ only appears when the sheet has values for it; blank cells never show up.
 | `Plan` | Plan label shown in the dropdown |
 | `Years` | Plan length (informational) |
 | `Discount %` | Off the original price (negative = premium) |
-| `Down Payment Type` | `Original Price` or `Selling price` — what the DP %s are taken on (`Selling price` = final price incl. finishing) |
+| `Down Payment Type` | `Original Price` or `Selling price` — what the DP %s are taken on (`Original Price` = price before discount + finishing cost; `Selling price` = final price incl. finishing) |
 | `Down Payment 1 %` / `2 %` | Down payments; DP1 at contract, DP2 after `DP2 Due (months)` |
 | `Installments Count` / `Installment Every (months)` / `First Installment Due (months)` | The rest of the **final** price split equally |
 | `Maintenance %` + `Maintenance Basis` | Maintenance total = % × basis price |
@@ -71,7 +71,12 @@ Net Unit Price   = Original − Discount %          (or a manual override)
 Finishing Cost   = Unit Area × BUA                (only when BUA is set)
 Final Unit Price = Net + Finishing
 Down payments    = % of the Down Payment Type price
+                   Original Price → Original + Finishing (before discount)
+                   Selling price  → Final Unit Price
 Installments     = (Final − DP1 − DP2) / count    (equal, last absorbs rounding)
+
+e.g. unit 1000, discount 300, finishing 200, Original Price, 5% + 5%:
+     DP = 10% × 1200 = 120, installments share 900 − 120 = 780
 Maintenance      = % of the Maintenance Basis price, equal payments from
                    First to Ending every N months
 Grand Total      = Final Unit Price + Maintenance
