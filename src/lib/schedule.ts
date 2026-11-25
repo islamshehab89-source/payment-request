@@ -9,13 +9,16 @@ export interface ScheduleInputs {
 }
 
 export interface ScheduleRow {
-  code: string; // "DP-1", "DP-2", "INS-1", ...
+  code: string; // "DP-1", "DP-2", "INS-1", "BUL-1", ...
   label: string;
   dueDate: Date;
   percent: number; // fraction of the final unit price
   amount: number;
   balance: number; // remaining final-price balance after this payment
-  year: number; // 0 = down payments, 1..N for installment years
+  // 0 = down payments, 1..N for the years after them. Counted from the first
+  // installment, except in plans with bullets or a yearly increase, which are
+  // defined per contract year and so are grouped by contract year.
+  year: number;
 }
 
 export interface MaintenanceRow {
@@ -108,24 +111,76 @@ export function computeSchedule(
     );
   }
 
+  // Bullets — extra lump sums at the end of contract years 1, 2, … (months 12,
+  // 24, …), a % of the same price the down payments are taken on.
+  const bullets: { month: number; amount: number; year: number }[] = [];
+  (plan.bulletsPct ?? []).forEach((pct, k) => {
+    const amount = Math.round(dpBase * pct);
+    if (amount > 0) bullets.push({ month: 12 * (k + 1), amount, year: k + 1 });
+  });
+  const bulletsTotal = bullets.reduce((s, b) => s + b.amount, 0);
+
+  // Contract year of a payment due `m` months after the contract: months 1–12
+  // are year 1, 13–24 year 2, … (month 0 counts as year 1).
+  const contractYear = (m: number) => Math.max(1, Math.ceil(m / 12));
+  const step = plan.yearlyIncreasePct ?? 0;
+  const byContractYear = step > 0 || bullets.length > 0;
+
   // Periodic installments — the rest of the FINAL price (so finishing cost is
-  // spread across the installments), equal split, last absorbs rounding.
-  const remaining = finalPrice - dp1 - dp2;
+  // spread across the installments). Equal split, or in a backloaded plan
+  // weighted 1, 1 + step, 1 + 2·step… by contract year; the last absorbs
+  // rounding.
+  const installments: { month: number; amount: number; year: number }[] = [];
+  const remaining = finalPrice - dp1 - dp2 - bulletsTotal;
   const count = plan.installmentsCount;
   if (count > 0 && remaining > 0) {
+    const months = Array.from(
+      { length: count },
+      (_, i) => plan.monthsToFirstInstallment + i * plan.installmentEveryMonths,
+    );
+    const weights = months.map((m) => 1 + step * (contractYear(m) - 1));
+    const totalWeight = weights.reduce((s, w) => s + w, 0);
     const per = Math.round(remaining / count);
     let allocated = 0;
-    for (let i = 1; i <= count; i++) {
-      const isLast = i === count;
-      const amount = isLast ? remaining - allocated : per;
+    months.forEach((m, i) => {
+      const isLast = i === count - 1;
+      const amount = isLast
+        ? remaining - allocated
+        : step > 0
+          ? Math.round((remaining * weights[i]) / totalWeight)
+          : per;
       allocated += amount;
-      const monthsOut =
-        plan.monthsToFirstInstallment + (i - 1) * plan.installmentEveryMonths;
-      const dueDate = addMonths(inputs.contractDate, monthsOut);
-      const year =
-        Math.floor((monthsOut - plan.monthsToFirstInstallment) / 12) + 1;
-      pushRow(`INS-${i}`, `Installment ${i}`, dueDate, amount, year);
-    }
+      const year = byContractYear
+        ? contractYear(m)
+        : Math.floor((m - plan.monthsToFirstInstallment) / 12) + 1;
+      installments.push({ month: m, amount, year });
+    });
+  }
+
+  // Installments and bullets in due-date order; on the same date the
+  // installment comes first, then the bullet.
+  const timeline = [
+    ...installments.map((x, i) => ({
+      ...x,
+      tie: 0,
+      code: `INS-${i + 1}`,
+      label: `Installment ${i + 1}`,
+    })),
+    ...bullets.map((b) => ({
+      ...b,
+      tie: 1,
+      code: `BUL-${b.year}`,
+      label: `Bullet Y${b.year}`,
+    })),
+  ].sort((a, b) => a.month - b.month || a.tie - b.tie);
+  for (const x of timeline) {
+    pushRow(
+      x.code,
+      x.label,
+      addMonths(inputs.contractDate, x.month),
+      x.amount,
+      x.year,
+    );
   }
 
   // Maintenance — its own schedule, billed on top of the unit price.

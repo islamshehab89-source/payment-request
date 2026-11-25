@@ -11,7 +11,10 @@
 //   finalPrice    = netPrice + finishingCost
 //   downPayment1  = dpBase × downPayment1Pct     (dpBase = original or final price)
 //   downPayment2  = dpBase × downPayment2Pct     (due monthsToDownPayment2 later)
-//   installments  = (finalPrice − dp1 − dp2) / installmentsCount, equal, spaced
+//   bullets       = dpBase × bulletsPct[k], due at the end of contract year k+1
+//   installments  = (finalPrice − dp1 − dp2 − bullets) / installmentsCount,
+//                   equal and spaced — or stepped up every contract year when
+//                   the plan is backloaded (yearlyIncreasePct)
 //   maintenance   = maintBase × maintenancePct, split into equal payments from
 //                   maintenanceFirstDueMonths to maintenanceEndDueMonths every
 //                   maintenanceEveryMonths months
@@ -40,6 +43,14 @@ export interface Plan {
   installmentsCount: number;
   installmentEveryMonths: number; // 3 = quarterly, 1 = monthly
   monthsToFirstInstallment: number;
+  // Backloaded plans: each contract year's installments are larger than year
+  // 1's by this fraction of the year-1 amount, added once per year (0.2 gives
+  // 1×, 1.2×, 1.4×… — simple, not compounded). 0 / missing = equal installments.
+  yearlyIncreasePct?: number;
+  // Bullet payments on top of the installments: bulletsPct[k] is due at the end
+  // of contract year k + 1 (month 12, 24, …), as a fraction of the same price
+  // the down payments are taken on. 0 skips that year; empty / missing = none.
+  bulletsPct?: number[];
 
   maintenancePct: number;
   maintenanceBasis: PriceBasis;

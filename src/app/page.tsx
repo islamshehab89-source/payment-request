@@ -937,6 +937,7 @@ function ScheduleTable({ result }: { result: ScheduleResult }) {
           const showYearDivider = r.year > 0 && r.year !== lastYear;
           lastYear = r.year;
           const isDp = r.code.startsWith("DP");
+          const isBullet = r.code.startsWith("BUL");
           return (
             <Fragmentish key={r.code}>
               {showYearDivider && (
@@ -944,7 +945,11 @@ function ScheduleTable({ result }: { result: ScheduleResult }) {
                   <td colSpan={6}>Year {r.year}</td>
                 </tr>
               )}
-              <tr className={isDp ? "row-dp" : undefined}>
+              <tr
+                className={
+                  isDp ? "row-dp" : isBullet ? "row-bullet" : undefined
+                }
+              >
                 <td>
                   <span className="code-chip">{r.code}</span>
                 </td>
