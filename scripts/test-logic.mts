@@ -354,8 +354,8 @@ console.log("\nReference example:");
 // and amount (scripts/fixtures/mornings-new-plans-2026-11.json, taken from
 // their workbook — 10,000,000 list price, 0% discount, contracts dated 15 Nov
 // 2026 for Everyday and 17 Nov 2026 for Residential). One agreed exception:
-// Residential A1 starts its installments at month 12 like Everyday's (the
-// workbook had month 15), so its fixture rows are 29 installments from month 12.
+// Residential A1 starts its 28 installments at month 12 like Everyday's (the
+// workbook had month 15), so they run Nov 2027 – Aug 2034.
 console.log("\nThe Mornings new plans (Nov 2026):");
 {
   const expected = JSON.parse(
@@ -391,7 +391,7 @@ console.log("\nThe Mornings new plans (Nov 2026):");
     plan(E, "", "Core & Shell", "5% & 5% & 7 years (Backloaded)", 7, 5, 27, 6, 20, ""),
     plan(E, "", "Core & Shell", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
     plan(E, "", "Finished", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
-    plan(R, "The Mornings (Residential)", "Core & Shell", "7.5% & 7.5% & 8 years (1 year grace)", 8, 7.5, 29, 12, "", ""),
+    plan(R, "The Mornings (Residential)", "Core & Shell", "7.5% & 7.5% & 8 years (1 year grace)", 8, 7.5, 28, 12, "", ""),
     plan(R, "", "Core & Shell", "5% & 5% & 8 years (Backloaded)", 8, 5, 31, 6, 10, ""),
     plan(R, "", "Core & Shell", "5% & 5% & 8 years + Bullets", 8, 5, 31, 6, "", RESIDENTIAL_BULLETS),
   ]);
@@ -421,6 +421,15 @@ console.log("\nThe Mornings new plans (Nov 2026):");
       const got = r.rows.map((x) => [x.label, iso(x.dueDate), x.amount]);
       check(`new plans: ${projectName} "${pl.label}" matches "${exp.title}"`, got, exp.rows);
       check(`new plans: ${pl.label} balances`, [r.unscheduled, r.rows.at(-1)?.balance], [0, 0]);
+      if (pl.monthsToFirstInstallment === 12) {
+        // A1: Year 1 is the empty grace year, so the installments start in
+        // Year 2; Residential's 28 fill Years 2–8 four by four.
+        const perYear = new Map<number, number>();
+        r.rows.filter((x) => x.year > 0).forEach((x) => perYear.set(x.year, (perYear.get(x.year) ?? 0) + 1));
+        check(`new plans: ${pl.label} — Year 1 is an empty grace year`, [r.graceYears, r.rows.find((x) => x.year > 0)?.year], [1, 2]);
+        if (key === "residential")
+          check(`new plans: ${pl.label} — 4 installments in each of Years 2–8`, [...perYear], [2, 3, 4, 5, 6, 7, 8].map((y) => [y, 4]));
+      }
       // 10% maintenance = 1,000,000 in four payments of 250,000
       const [m1, m4] = MAINT[key];
       const contractDay = new Date(2026, 10, day);
@@ -582,10 +591,23 @@ console.log("\nExcel export:");
       });
       if (!head) problems.push("no schedule header");
 
+      // An empty grace year gets a note line just ahead of the first
+      // installment year; the balance carries through it unchanged.
+      const graceAt = r.rows.findIndex((x) => x.year > 0);
+      const lineOf = (i: number) => head + 1 + i + (i >= graceAt ? r.graceYears : 0);
+      for (let g = 0; g < r.graceYears; g++) {
+        const n = head + 1 + graceAt + g;
+        const bal = ws.getCell(n, 6).value as { formula?: string; result?: number } | null;
+        const prevBal = graceAt + g === 0 ? r.finalPrice : graceAt > 0 ? r.rows[graceAt - 1].balance : r.finalPrice;
+        if (ws.getCell(n, 1).value !== `Year ${g + 1}` || ws.getCell(n, 2).value !== "Grace period — no installments")
+          problems.push(`row ${n}: grace year line`);
+        if (!/^ROUND\(/.test(bal?.formula ?? "") || !near(bal?.result, prevBal)) problems.push(`row ${n}: grace balance`);
+      }
+
       // the final-price cell every % divides by
       let finalRef = "";
       r.rows.forEach((x, i) => {
-        const n = head + 1 + i;
+        const n = lineOf(i);
         const amount = ws.getCell(n, 3).value;
         const pct = ws.getCell(n, 5).value as { formula?: string; result?: number } | null;
         if (ws.getCell(n, 2).value !== x.label) problems.push(`row ${n}: label`);
@@ -598,7 +620,7 @@ console.log("\nExcel export:");
       const fin = ws.getCell(finalRef.replace(/\$/g, "")).value as { formula?: string; result?: number } | null;
       if (!fin?.formula || !near(fin.result, r.finalPrice))
         problems.push(`% divides by ${finalRef}, which is not the live final price`);
-      const total = ws.getCell(head + 1 + r.rows.length, 5).value as { formula?: string; result?: number } | null;
+      const total = ws.getCell(head + 1 + r.rows.length + r.graceYears, 5).value as { formula?: string; result?: number } | null;
       if (!total?.formula?.startsWith("SUM(") || !near(total.result, 1)) problems.push("total % is not SUM = 100%");
 
       if (problems.length) console.log(`FAIL  [${label}] excel: ${problems.join("; ")}`);

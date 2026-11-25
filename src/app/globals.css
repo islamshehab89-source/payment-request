@@ -236,6 +236,10 @@ table.schedule tbody tr:hover {
   font-weight: 600;
   color: var(--ink);
 }
+.row-grace td {
+  color: var(--muted);
+  font-style: italic;
+}
 .year-divider td {
   background: #f2f4f6;
   font-weight: 600;
