@@ -38,7 +38,9 @@ only appears when the sheet has values for it; blank cells never show up.
 | `Maintenance %` + `Maintenance Basis` | Maintenance total = % × basis price |
 | `First/Ending Installment Maintenance Due (months)` + `Maintenance Every (months)` | Maintenance paid in equal installments across that window |
 | `Delivery (months)` | Months to delivery (informational) |
-| `Status` | `Active` or `Inactive` (optional, last column). **Inactive plans are hidden from the page.** Blank = Active |
+| `Status` | `Active` or `Inactive` (optional). **Inactive plans are hidden from the page.** Blank = Active |
+| `Yearly Increase %` | *Backloaded* plans (optional). Each contract year the installments grow by this % of the year-1 installment: `20` → year 2 pays 1.2×, year 3 1.4×… (simple, not compounded). Blank = equal installments |
+| `Yearly Bullets %` | *Bullet* payments (optional), one % per contract year: `5, 5, 5, 7.5, 7.5, 7.5, 10` = Bullet Y1…Y7, due at months 12, 24, 36… on the same price as the down payments (`Down Payment Type`). `0` skips a year. Blank = no bullets |
 
 **All `%` columns are plain numbers in percent units: `10` = 10%.** %-formatted cells also work.
 
@@ -71,11 +73,19 @@ Net Unit Price   = Original − Discount %          (or a manual override)
 Finishing Cost   = Unit Area × BUA                (only when BUA is set)
 Final Unit Price = Net + Finishing
 Down payments    = % of the Down Payment Type price
-Installments     = (Final − DP1 − DP2) / count    (equal, last absorbs rounding)
+Bullets          = % of the Down Payment Type price, at months 12, 24, 36…
+Installments     = (Final − DP1 − DP2 − bullets) / count
+                   (equal, last absorbs rounding; with a Yearly Increase the
+                   year-k installments weigh 1 + (k−1) × increase instead)
 Maintenance      = % of the Maintenance Basis price, equal payments from
                    First to Ending every N months
 Grand Total      = Final Unit Price + Maintenance
 ```
+
+The schedule groups installments into "Year 1, Year 2…" counted from the first installment. A plan
+with bullets or a yearly increase is defined per contract year, so it is grouped by contract year
+instead (months 1–12 = Year 1): every bullet closes its year, and every backloaded year has one
+installment amount.
 
 Rows with problems are skipped and listed in a banner with their row numbers; the rest still
 loads. If a plan's payments don't add up to the final price, the page shows a warning with the

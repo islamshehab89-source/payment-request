@@ -348,6 +348,203 @@ console.log("\nReference example:");
   }
 }
 
+// -------- The Mornings plans added in Nov 2026: A1, Backloaded, Bullets --------
+// The rows as they sit in the Google Sheet, read through the real loader, must
+// reproduce the sales team's own schedules payment by payment: label, due date
+// and amount (scripts/fixtures/mornings-new-plans-2026-11.json, taken from
+// their workbook — 10,000,000 list price, 0% discount, contracts dated 15 Nov
+// 2026 for Everyday and 17 Nov 2026 for Residential). One agreed exception:
+// Residential A1 starts its installments at month 12 like Everyday's (the
+// workbook had month 15), so its fixture rows are 29 installments from month 12.
+console.log("\nThe Mornings new plans (Nov 2026):");
+{
+  const expected = JSON.parse(
+    fs.readFileSync(
+      path.join(root, "scripts", "fixtures", "mornings-new-plans-2026-11.json"),
+      "utf8",
+    ),
+  ) as Record<string, { title: string; rows: [string, string, number][] }[]>;
+  const head = [...HEAD, "Yearly Increase %", "Yearly Bullets %"];
+  // DP1 = DP2 = `dp`, DP2 after 3 months, quarterly installments, and 10%
+  // maintenance in four payments every 6 months: Everyday at months 18–36,
+  // Residential at 12–30.
+  const MAINT = { everyday: [18, 36], residential: [12, 30] } as const;
+  const plan = (
+    maint: readonly [number, number], project: string, type: string, label: string,
+    years: number, dp: number, count: number, first: number,
+    increase: number | "", bullets: string,
+  ): unknown[] => {
+    const finished = type === "Finished";
+    const basis = finished ? "Selling price" : "Original Price";
+    return [
+      project, type, finished ? 20000 : "", "", label, years, 0, basis, dp, dp, 3,
+      count, 3, first, 10, 42, maint[0], maint[1], 6, basis, "Active", increase, bullets,
+    ];
+  };
+  const EVERYDAY_BULLETS = "5, 5, 5, 7.5, 7.5, 7.5, 10";
+  const RESIDENTIAL_BULLETS = "5, 5, 5, 7.5, 7.5, 7.5, 10, 10";
+  const E = MAINT.everyday;
+  const R = MAINT.residential;
+  const d = await loadSheet([
+    head,
+    plan(E, "The Mornings_Everyday", "Core & Shell", "7.5% & 7.5% & 7 years (1 year grace)", 7, 7.5, 25, 12, "", ""),
+    plan(E, "", "Core & Shell", "5% & 5% & 7 years (Backloaded)", 7, 5, 27, 6, 20, ""),
+    plan(E, "", "Core & Shell", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
+    plan(E, "", "Finished", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
+    plan(R, "The Mornings (Residential)", "Core & Shell", "7.5% & 7.5% & 8 years (1 year grace)", 8, 7.5, 29, 12, "", ""),
+    plan(R, "", "Core & Shell", "5% & 5% & 8 years (Backloaded)", 8, 5, 31, 6, 10, ""),
+    plan(R, "", "Core & Shell", "5% & 5% & 8 years + Bullets", 8, 5, 31, 6, "", RESIDENTIAL_BULLETS),
+  ]);
+  check("new plans: sheet rows load without warnings", d.errors, []);
+  const iso = (x: Date) =>
+    `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  const projects = [
+    ["everyday", "The Mornings_Everyday", 15],
+    ["residential", "The Mornings (Residential)", 17],
+  ] as const;
+  for (const [key, projectName, day] of projects) {
+    const plans = (d.projects.find((p) => p.name === projectName)?.plans ?? []).filter(
+      (p) => p.type === "Core & Shell",
+    );
+    expected[key].forEach((exp, i) => {
+      const pl = plans[i];
+      if (!pl) {
+        console.log(`FAIL  new plans: no plan loaded for "${exp.title}"`);
+        failures++;
+        return;
+      }
+      const r = computeSchedule(pl, {
+        originalPrice: 10_000_000,
+        unitArea: 0,
+        contractDate: new Date(2026, 10, day),
+      });
+      const got = r.rows.map((x) => [x.label, iso(x.dueDate), x.amount]);
+      check(`new plans: ${projectName} "${pl.label}" matches "${exp.title}"`, got, exp.rows);
+      check(`new plans: ${pl.label} balances`, [r.unscheduled, r.rows.at(-1)?.balance], [0, 0]);
+      // 10% maintenance = 1,000,000 in four payments of 250,000
+      const [m1, m4] = MAINT[key];
+      const contractDay = new Date(2026, 10, day);
+      check(
+        `new plans: ${pl.label} — maintenance months ${m1}, ${m1 + 6}, ${m1 + 12}, ${m4}`,
+        r.maintenanceRows.map((x) => [iso(x.dueDate), x.amount]),
+        [m1, m1 + 6, m1 + 12, m4].map((m) => [
+          iso(new Date(contractDay.getFullYear(), contractDay.getMonth() + m, day)),
+          250_000,
+        ]),
+      );
+
+      // Rows are grouped by contract year in these plans: a backloaded year has
+      // one installment amount (the last installment absorbs rounding), and a
+      // bullet closes its year.
+      const years = new Map<number, Set<number>>();
+      r.rows.forEach((x, n) => {
+        if (x.code.startsWith("INS") && n < r.rows.length - 1)
+          years.set(x.year, (years.get(x.year) ?? new Set()).add(x.amount));
+      });
+      if (pl.yearlyIncreasePct) {
+        check(
+          `new plans: ${pl.label} — one installment amount per year`,
+          [...years.values()].every((s) => s.size === 1),
+          true,
+        );
+      }
+      if (pl.bulletsPct?.length) {
+        check(
+          `new plans: ${pl.label} — each bullet closes its year`,
+          r.rows.every(
+            (x, n) =>
+              !x.code.startsWith("BUL") ||
+              (x.year === Number(x.code.slice(4)) &&
+                (n === r.rows.length - 1 || r.rows[n + 1].year > x.year)),
+          ),
+          true,
+        );
+      }
+    });
+  }
+
+  // Finished: bullets and down payments are taken on the selling price, which
+  // includes the finishing (100 m² × 20,000 on top of 10,000,000).
+  const fin = d.projects
+    .find((p) => p.name === "The Mornings_Everyday")
+    ?.plans.find((p) => p.type === "Finished");
+  if (!fin) {
+    console.log("FAIL  new plans: Finished bullets plan not loaded");
+    failures++;
+  } else {
+    const r = computeSchedule(fin, {
+      originalPrice: 10_000_000,
+      unitArea: 100,
+      contractDate: new Date(2026, 10, 15),
+    });
+    const amount = (code: string) => r.rows.find((x) => x.code === code)?.amount;
+    check(
+      "new plans: Finished bullets plan on the selling price",
+      [r.finalPrice, amount("DP-1"), amount("BUL-1"), amount("BUL-7"), r.scheduleTotal],
+      [12_000_000, 600_000, 600_000, 1_200_000, 12_000_000],
+    );
+  }
+}
+{
+  // How the two new cells may be written, and what is rejected.
+  const head = [...HEAD, "Yearly Increase %", "Yearly Bullets %"];
+  const base = (label: string, increase: unknown, bullets: unknown, dp = 5): unknown[] => [
+    "B", "", "", "", label, 7, 0, "Original Price", dp, dp, 3,
+    27, 3, 6, 10, 42, 15, 39, 6, "Original Price", "Active", increase, bullets,
+  ];
+  const d = await loadSheet(
+    [
+      head,
+      base("semicolons and % signs", "", "5%; 5%;7.5"),
+      base("plus signs", "", "5 + 5 + 7.5"),
+      base("one number", "", 5),
+      base("percent cells", 0.2, 0.05),
+      base("zero years skipped", "", "0, 0, 10"),
+    ],
+    (ws) => {
+      ws["V5"].z = "0%";
+      ws["W5"].z = "0%";
+    },
+  );
+  const got = Object.fromEntries(
+    (d.projects[0]?.plans ?? []).map((p) => [p.label, [p.yearlyIncreasePct, p.bulletsPct]]),
+  );
+  check("bullets: list spellings", got, {
+    "semicolons and % signs": [0, [0.05, 0.05, 0.075]],
+    "plus signs": [0, [0.05, 0.05, 0.075]],
+    "one number": [0, [0.05]],
+    "percent cells": [0.2, [0.05]],
+    "zero years skipped": [0, [0, 0, 0.1]],
+  });
+  check("bullets: list spellings raise no warnings", d.errors, []);
+  const plan = d.projects[0]?.plans.find((p) => p.label === "zero years skipped");
+  const r = plan && computeSchedule(plan, { originalPrice: 1_000_000, unitArea: 0, contractDate: contract });
+  check(
+    "bullets: a 0% year has no bullet row",
+    r?.rows.filter((x) => x.code.startsWith("BUL")).map((x) => [x.label, x.amount]),
+    [["Bullet Y3", 100_000]],
+  );
+
+  const bad = await loadSheet([
+    head,
+    base("too much", "", "50, 40", 10),
+    base("not numbers", "", "5, five"),
+    base("negative increase", -10, ""),
+    base("fine", "", ""),
+  ]);
+  check("bullets: bad rows are skipped", bad.projects[0]?.plans.map((p) => p.label), ["fine"]);
+  check(
+    "bullets: bad rows are reported",
+    bad.errors.map((e) => e.slice(0, 6)),
+    ["Row 2:", "Row 3:", "Row 4:"],
+  );
+  check(
+    "bullets: over 100% names the bullets",
+    bad.errors[0],
+    "Row 2: down payments and bullets add up to 110% — must not exceed 100%",
+  );
+}
+
 // -------- Excel export: every plan, written and read back --------
 // The % / remaining / total cells must be formulas on the amount cells, so an
 // amount typed in Excel moves its %. Cached results must match the page.

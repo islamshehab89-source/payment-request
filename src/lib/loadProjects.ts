@@ -33,18 +33,22 @@ type PlanNumberField =
   | "maintenanceFirstDueMonths"
   | "maintenanceEndDueMonths"
   | "maintenanceEveryMonths"
-  | "deliveryMonths";
+  | "deliveryMonths"
+  | "yearlyIncreasePct";
 
 type PlanTextField = "name" | "label" | "type" | "phase" | "dpBasis" | "maintenanceBasis";
 
+type PlanListField = "bulletsPct";
+
 interface ColumnSpec {
   title: string; // canonical header, used in messages
-  field: PlanNumberField | PlanTextField | "status";
-  kind: "text" | "number" | "status";
+  field: PlanNumberField | PlanTextField | PlanListField | "status";
+  kind: "text" | "number" | "list" | "status";
   percent?: boolean; // entered in percent units (10 = 10%), stored as fraction
   integer?: boolean; // counts and month offsets must be whole numbers
-  min?: number;
+  min?: number; // for a list: each value
   max?: number;
+  optional?: boolean; // a sheet without this column is fine (no warning)
 }
 
 // Keyed by normalized header text — see normalizeHeader().
@@ -69,6 +73,13 @@ const COLUMNS: Record<string, ColumnSpec> = {
   "ending installment maintenance due months": { title: "Ending Installment Maintenance Due (months)", field: "maintenanceEndDueMonths", kind: "number", integer: true, min: 0, max: 600 },
   "maintenance every months": { title: "Maintenance Every (months)", field: "maintenanceEveryMonths", kind: "number", integer: true, min: 0, max: 120 },
   "maintenance basis": { title: "Maintenance Basis", field: "maintenanceBasis", kind: "text" },
+  // Backloaded plans: the installments grow by this % of year 1's installment
+  // every contract year. Optional: blank or no column = equal installments.
+  "yearly increase %": { title: "Yearly Increase %", field: "yearlyIncreasePct", kind: "number", percent: true, min: 0, max: 1000, optional: true },
+  // Bullet payments, one % per contract year ("5, 5, 7.5"), due at months 12,
+  // 24, 36… Optional: blank or no column = no bullets.
+  "yearly bullets %": { title: "Yearly Bullets %", field: "bulletsPct", kind: "list", percent: true, min: 0, max: 100, optional: true },
+  "bullets %": { title: "Yearly Bullets %", field: "bulletsPct", kind: "list", percent: true, min: 0, max: 100, optional: true },
   // Active / Inactive. Optional: without the column every plan is shown.
   "status": { title: "Status", field: "status", kind: "status" },
   "plan status": { title: "Status", field: "status", kind: "status" },
@@ -171,6 +182,59 @@ function readNumber(
     return null;
   }
   return n;
+}
+
+// Reads a cell holding several % values, one per contract year: "5, 5, 7.5"
+// (commas, semicolons, "+" or spaces between them; a "%" after each is fine).
+// A plain number is a one-item list. Empty → []. Returns null (and records an
+// error) when an item is not a number or is out of range. Values stay in
+// percent units, like readNumber().
+function readList(
+  cell: SheetCell | undefined,
+  spec: ColumnSpec,
+  rowNo: number,
+  errors: string[],
+): number[] | null {
+  if (cell != null && cell.t === "e") {
+    errors.push(
+      `Row ${rowNo}: "${spec.title}" contains an Excel error (${typeof cell.w === "string" ? cell.w : "#N/A"}) — fix the formula`,
+    );
+    return null;
+  }
+  if (cell == null || cell.v == null || cell.v === "") return [];
+  const v = cell.v;
+  let values: number[];
+  if (typeof v === "number") {
+    const pctCell =
+      spec.percent && typeof cell.z === "string" && hasPercentFormat(cell.z);
+    values = [pctCell ? v * 100 : v];
+  } else if (typeof v === "string") {
+    const parts = v
+      .split(/[,،;+|\s]+/)
+      .map((s) => s.trim().replace(/%$/, "").trim())
+      .filter(Boolean);
+    values = parts.map(Number);
+    const bad = parts.find((_, i) => !Number.isFinite(values[i]));
+    if (bad !== undefined) {
+      errors.push(
+        `Row ${rowNo}: "${spec.title}" must be numbers separated by commas, e.g. "5, 5, 7.5" (got "${v}")`,
+      );
+      return null;
+    }
+  } else {
+    errors.push(`Row ${rowNo}: "${spec.title}" has an unsupported value`);
+    return null;
+  }
+  const out = values.find(
+    (n) => (spec.min != null && n < spec.min) || (spec.max != null && n > spec.max),
+  );
+  if (out !== undefined) {
+    errors.push(
+      `Row ${rowNo}: every value in "${spec.title}" must be between ${spec.min} and ${spec.max} (got ${out})`,
+    );
+    return null;
+  }
+  return values;
 }
 
 // "Original Price" / "Selling price" → internal basis. Empty → default.
@@ -421,7 +485,7 @@ async function parseWorkbook(
     );
   }
   const missingColumns = Object.values(COLUMNS).filter(
-    (s) => s.kind === "number" && !seenFields.has(s.field),
+    (s) => s.kind === "number" && !s.optional && !seenFields.has(s.field),
   );
   if (missingColumns.length > 0) {
     errors.push(
@@ -483,12 +547,17 @@ async function parseWorkbook(
 
     const texts: Partial<Record<PlanTextField, string>> = {};
     const nums: Partial<Record<PlanNumberField, number>> = {};
+    const lists: Partial<Record<PlanListField, number[]>> = {};
     let rowBroken = false;
 
     for (const [c, spec] of colSpec) {
       const cell = getCell(r, c);
       if (spec.kind === "status") continue;
-      if (spec.kind === "text") {
+      if (spec.kind === "list") {
+        const list = readList(cell, spec, rowNo, errors);
+        if (list === null) rowBroken = true;
+        else lists[spec.field as PlanListField] = list;
+      } else if (spec.kind === "text") {
         if (cell != null && cell.t === "e") {
           errors.push(
             `Row ${rowNo}: "${spec.title}" contains an Excel error (${typeof cell.w === "string" ? cell.w : "#N/A"}) — fix the formula`,
@@ -542,16 +611,21 @@ async function parseWorkbook(
     const dp2 = nums.downPayment2Pct ?? 0;
     const count = nums.installmentsCount ?? 0;
     const every = nums.installmentEveryMonths ?? 0;
+    const bullets = lists.bulletsPct ?? [];
+    const bulletsSum = bullets.reduce((s, b) => s + b, 0);
+    // Rounded so 7.5 + 7.5 + … doesn't print as 47.49999999999999.
+    const upfront = Math.round((dp1 + dp2 + bulletsSum) * 1e6) / 1e6;
+    const what = bulletsSum > 0 ? "down payments and bullets" : "down payments";
 
-    if (dp1 + dp2 > 100 + EPS) {
+    if (upfront > 100 + EPS) {
       errors.push(
-        `Row ${rowNo}: down payments add up to ${dp1 + dp2}% — must not exceed 100%`,
+        `Row ${rowNo}: ${what} add up to ${upfront}% — must not exceed 100%`,
       );
       continue;
     }
-    if (count === 0 && dp1 + dp2 < 100 - EPS) {
+    if (count === 0 && upfront < 100 - EPS) {
       errors.push(
-        `Row ${rowNo}: down payments cover only ${dp1 + dp2}% and there are no installments — the remaining ${100 - dp1 - dp2}% has no due date`,
+        `Row ${rowNo}: ${what} cover only ${upfront}% and there are no installments — the remaining ${Math.round((100 - upfront) * 1e6) / 1e6}% has no due date`,
       );
       continue;
     }
@@ -634,6 +708,8 @@ async function parseWorkbook(
         installmentsCount: count,
         installmentEveryMonths: every || 3,
         monthsToFirstInstallment: nums.monthsToFirstInstallment ?? 0,
+        yearlyIncreasePct: (nums.yearlyIncreasePct ?? 0) / 100,
+        bulletsPct: bullets.map((b) => b / 100),
         maintenancePct: maintPct / 100,
         maintenanceBasis,
         maintenanceFirstDueMonths: mFirst,

@@ -561,13 +561,14 @@ export function buildWorkbook(
   rows.forEach((p, i) => {
     const r = first + i;
     const isDp = p.year === 0;
+    const isBold = isDp || p.code.startsWith("BUL"); // down payments, bullets
     const bg = isDp
       ? COLOR.goldTint
       : p.year % 2 === 0
         ? COLOR.forestTint
         : COLOR.white;
     const base: Style = {
-      font: font({ bold: isDp }),
+      font: font({ bold: isBold }),
       fill: solid(bg),
       border: box(),
       alignment: { vertical: "middle", horizontal: "center" },
@@ -584,7 +585,7 @@ export function buildWorkbook(
     }, p.amount);
     block(ws, r, 4, r, 4, {
       ...base,
-      font: font({ bold: isDp, italic: true }),
+      font: font({ bold: isBold, italic: true }),
       numFmt: DATE,
     }, excelDate(p.dueDate));
     block(ws, r, 5, r, 5, {
