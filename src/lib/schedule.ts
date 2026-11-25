@@ -17,8 +17,10 @@ export interface ScheduleRow {
   balance: number; // remaining final-price balance after this payment
   // 0 = down payments, 1..N for the years after them. Counted from the first
   // installment, plus the whole grace years before it (an installment due at
-  // month 12 opens Year 2). Plans with bullets or a yearly increase are
-  // defined per contract year and so are grouped by contract year.
+  // month 12 opens Year 2), and never past the plan's Years (an installment
+  // due on the last anniversary stays in the last year). Plans with bullets
+  // or a yearly increase are defined per contract year and so are grouped by
+  // contract year.
   year: number;
 }
 
@@ -132,6 +134,9 @@ export function computeSchedule(
   // Whole years before the first installment: a plan that starts its
   // installments at month 12 has one grace year, so they start in Year 2.
   const graceYears = Math.floor(plan.monthsToFirstInstallment / 12);
+  // No installment is shown past the plan's length: one due on the last
+  // anniversary (month 96 of an 8-year plan) closes Year 8, not opens Year 9.
+  const lastPlanYear = plan.years > 0 ? Math.ceil(plan.years) : Infinity;
 
   // Periodic installments — the rest of the FINAL price (so finishing cost is
   // spread across the installments). Equal split, or in a backloaded plan
@@ -157,9 +162,15 @@ export function computeSchedule(
           ? Math.round((remaining * weights[i]) / totalWeight)
           : per;
       allocated += amount;
-      const year = byContractYear
-        ? contractYear(m)
-        : Math.floor((m - plan.monthsToFirstInstallment) / 12) + 1 + graceYears;
+      const year = Math.max(
+        1,
+        Math.min(
+          lastPlanYear,
+          byContractYear
+            ? contractYear(m)
+            : Math.floor((m - plan.monthsToFirstInstallment) / 12) + 1 + graceYears,
+        ),
+      );
       installments.push({ month: m, amount, year });
     });
   }
