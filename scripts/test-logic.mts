@@ -354,8 +354,8 @@ console.log("\nReference example:");
 // and amount (scripts/fixtures/mornings-new-plans-2026-11.json, taken from
 // their workbook — 10,000,000 list price, 0% discount, contracts dated 15 Nov
 // 2026 for Everyday and 17 Nov 2026 for Residential). One agreed exception:
-// Residential A1 starts its 28 installments at month 12 like Everyday's (the
-// workbook had month 15), so they run Nov 2027 – Aug 2034.
+// Residential A1 starts at month 12 like Everyday's and runs to month 96: 29
+// installments, Nov 2027 – Nov 2034 (the workbook had 28 from month 15).
 console.log("\nThe Mornings new plans (Nov 2026):");
 {
   const expected = JSON.parse(
@@ -391,7 +391,7 @@ console.log("\nThe Mornings new plans (Nov 2026):");
     plan(E, "", "Core & Shell", "5% & 5% & 7 years (Backloaded)", 7, 5, 27, 6, 20, ""),
     plan(E, "", "Core & Shell", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
     plan(E, "", "Finished", "5% & 5% & 7 years + Bullets", 7, 5, 27, 6, "", EVERYDAY_BULLETS),
-    plan(R, "The Mornings (Residential)", "Core & Shell", "7.5% & 7.5% & 8 years (1 year grace)", 8, 7.5, 28, 12, "", ""),
+    plan(R, "The Mornings (Residential)", "Core & Shell", "7.5% & 7.5% & 8 years (1 year grace)", 8, 7.5, 29, 12, "", ""),
     plan(R, "", "Core & Shell", "5% & 5% & 8 years (Backloaded)", 8, 5, 31, 6, 10, ""),
     plan(R, "", "Core & Shell", "5% & 5% & 8 years + Bullets", 8, 5, 31, 6, "", RESIDENTIAL_BULLETS),
   ]);
@@ -423,12 +423,17 @@ console.log("\nThe Mornings new plans (Nov 2026):");
       check(`new plans: ${pl.label} balances`, [r.unscheduled, r.rows.at(-1)?.balance], [0, 0]);
       if (pl.monthsToFirstInstallment === 12) {
         // A1: Year 1 is the empty grace year, so the installments start in
-        // Year 2; Residential's 28 fill Years 2–8 four by four.
+        // Year 2 and come four a year; the last one, due on the plan's last
+        // anniversary (month 84 / 96), sits alone in the year after.
         const perYear = new Map<number, number>();
         r.rows.filter((x) => x.year > 0).forEach((x) => perYear.set(x.year, (perYear.get(x.year) ?? 0) + 1));
         check(`new plans: ${pl.label} — Year 1 is an empty grace year`, [r.graceYears, r.rows.find((x) => x.year > 0)?.year], [1, 2]);
-        if (key === "residential")
-          check(`new plans: ${pl.label} — 4 installments in each of Years 2–8`, [...perYear], [2, 3, 4, 5, 6, 7, 8].map((y) => [y, 4]));
+        const lastYear = key === "residential" ? 9 : 8;
+        check(
+          `new plans: ${pl.label} — 4 installments a year in Years 2–${lastYear - 1}, 1 in Year ${lastYear}`,
+          [...perYear],
+          [...Array.from({ length: lastYear - 2 }, (_, k) => [k + 2, 4]), [lastYear, 1]],
+        );
       }
       // 10% maintenance = 1,000,000 in four payments of 250,000
       const [m1, m4] = MAINT[key];
