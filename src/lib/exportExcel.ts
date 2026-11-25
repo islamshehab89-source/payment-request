@@ -9,7 +9,7 @@
 // Terms of Payment grouped by year, in the PDF's forest + gold palette.
 import ExcelJS from "exceljs";
 import type { Plan } from "./projects";
-import type { ScheduleResult } from "./schedule";
+import type { ScheduleResult, ScheduleRow } from "./schedule";
 import { formatDate, getCurrency, monthsToYears, percent } from "./format";
 
 export interface ExcelInfo {
@@ -557,9 +557,41 @@ export function buildWorkbook(
 
   const first = row;
   const rows = result.rows;
-  const last = first + rows.length - 1;
+  // One sheet line per payment, plus a note line for each empty grace year
+  // just ahead of the first installment year.
+  const lines: { year: number; p: ScheduleRow | null }[] = [];
   rows.forEach((p, i) => {
+    if (p.year > 0 && (i === 0 || rows[i - 1].year === 0)) {
+      for (let y = 1; y <= result.graceYears; y++) lines.push({ year: y, p: null });
+    }
+    lines.push({ year: p.year, p });
+  });
+  const last = first + lines.length - 1;
+  let prevBalance = result.finalPrice;
+  lines.forEach(({ year, p }, i) => {
     const r = first + i;
+    if (!p) {
+      // Grace year: no payment, the remaining balance carries over unchanged.
+      const muted: Style = {
+        font: font({ italic: true, color: { argb: COLOR.muted } }),
+        fill: solid(year % 2 === 0 ? COLOR.forestTint : COLOR.white),
+        border: box(),
+        alignment: { vertical: "middle", horizontal: "left", indent: 1 },
+      };
+      ws.getRow(r).height = 18;
+      block(ws, r, 2, r, 5, muted, "Grace period — no installments");
+      block(ws, r, 6, r, 6, {
+        ...muted,
+        font: font({ color: { argb: COLOR.muted } }),
+        alignment: { vertical: "middle", horizontal: "right", indent: 1 },
+        numFmt: NUM_RED,
+      }, formula(
+        i === 0 ? `ROUND(${finalCell},2)` : `ROUND(${ref(6, r - 1)},2)`,
+        prevBalance,
+      ));
+      return;
+    }
+    prevBalance = p.balance;
     const isDp = p.year === 0;
     const isBold = isDp || p.code.startsWith("BUL"); // down payments, bullets
     const bg = isDp
@@ -607,10 +639,10 @@ export function buildWorkbook(
   });
 
   // Year column: one merged cell per year (and one for the down payments).
-  for (let i = 0; i < rows.length; ) {
+  for (let i = 0; i < lines.length; ) {
     let j = i;
-    while (j + 1 < rows.length && rows[j + 1].year === rows[i].year) j++;
-    const y = rows[i].year;
+    while (j + 1 < lines.length && lines[j + 1].year === lines[i].year) j++;
+    const y = lines[i].year;
     block(
       ws,
       first + i,

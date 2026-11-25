@@ -16,7 +16,8 @@ export interface ScheduleRow {
   amount: number;
   balance: number; // remaining final-price balance after this payment
   // 0 = down payments, 1..N for the years after them. Counted from the first
-  // installment, except in plans with bullets or a yearly increase, which are
+  // installment, plus the whole grace years before it (an installment due at
+  // month 12 opens Year 2). Plans with bullets or a yearly increase are
   // defined per contract year and so are grouped by contract year.
   year: number;
 }
@@ -36,6 +37,9 @@ export interface ScheduleResult {
   finalPrice: number; // netPrice + finishingCost
 
   rows: ScheduleRow[]; // down payments + installments
+  // Years with no payment before the first installment year (Year 1 …
+  // graceYears), e.g. 1 when the installments start a year after the contract.
+  graceYears: number;
   scheduleTotal: number; // sum of rows
   unscheduled: number; // finalPrice − scheduleTotal (0 when the plan adds up)
 
@@ -125,6 +129,9 @@ export function computeSchedule(
   const contractYear = (m: number) => Math.max(1, Math.ceil(m / 12));
   const step = plan.yearlyIncreasePct ?? 0;
   const byContractYear = step > 0 || bullets.length > 0;
+  // Whole years before the first installment: a plan that starts its
+  // installments at month 12 has one grace year, so they start in Year 2.
+  const graceYears = Math.floor(plan.monthsToFirstInstallment / 12);
 
   // Periodic installments — the rest of the FINAL price (so finishing cost is
   // spread across the installments). Equal split, or in a backloaded plan
@@ -152,7 +159,7 @@ export function computeSchedule(
       allocated += amount;
       const year = byContractYear
         ? contractYear(m)
-        : Math.floor((m - plan.monthsToFirstInstallment) / 12) + 1;
+        : Math.floor((m - plan.monthsToFirstInstallment) / 12) + 1 + graceYears;
       installments.push({ month: m, amount, year });
     });
   }
@@ -206,6 +213,7 @@ export function computeSchedule(
   }
 
   const scheduleTotal = rows.reduce((s, r) => s + r.amount, 0);
+  const firstYear = rows.find((r) => r.year > 0)?.year ?? 1;
 
   return {
     originalPrice: original,
@@ -214,6 +222,7 @@ export function computeSchedule(
     finishingCost,
     finalPrice,
     rows,
+    graceYears: firstYear - 1,
     scheduleTotal,
     unscheduled: Math.round(finalPrice - scheduleTotal),
     maintenanceTotal,

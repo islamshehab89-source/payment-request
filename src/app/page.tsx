@@ -156,7 +156,8 @@ export default function Page() {
     const years = new Set(
       result.rows.filter((r) => r.year > 0).map((r) => r.year),
     ).size;
-    return result.rows.length + years; // body rows + year dividers
+    // body rows + year dividers + a divider and a note per empty grace year
+    return result.rows.length + years + 2 * result.graceYears;
   })();
 
   // The schedule "fills" a printed page once it has enough rows (installments +
@@ -935,11 +936,24 @@ function ScheduleTable({ result }: { result: ScheduleResult }) {
       <tbody>
         {rows.map((r) => {
           const showYearDivider = r.year > 0 && r.year !== lastYear;
+          // Ahead of the first installment year: the empty grace year(s).
+          const grace = showYearDivider && lastYear <= 0 ? result.graceYears : 0;
           lastYear = r.year;
           const isDp = r.code.startsWith("DP");
           const isBullet = r.code.startsWith("BUL");
           return (
             <Fragmentish key={r.code}>
+              {Array.from({ length: grace }, (_, g) => (
+                <Fragmentish key={`grace-${g + 1}`}>
+                  <tr className="year-divider">
+                    <td colSpan={6}>Year {g + 1}</td>
+                  </tr>
+                  <tr className="row-grace">
+                    <td></td>
+                    <td colSpan={5}>Grace period — no installments</td>
+                  </tr>
+                </Fragmentish>
+              ))}
               {showYearDivider && (
                 <tr className="year-divider">
                   <td colSpan={6}>Year {r.year}</td>
