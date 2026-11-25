@@ -30,7 +30,7 @@ only appears when the sheet has values for it; blank cells never show up.
 | `BUA` | Finishing price per m². When set, the page asks for the unit area and adds `area × BUA` **after the discount** (optional) |
 | `Phase` | Phase dropdown (optional) |
 | `Plan` | Plan label shown in the dropdown |
-| `Years` | Plan length (informational) |
+| `Years` | Plan length. Also the last "Year N" the schedule shows: an installment due on the final anniversary (month 96 of an 8-year plan) counts in Year 8, not Year 9 |
 | `Discount %` | Off the original price (negative = premium) |
 | `Down Payment Type` | `Original Price` or `Selling price` — what the DP %s are taken on (`Selling price` = final price incl. finishing) |
 | `Down Payment 1 %` / `2 %` | Down payments; DP1 at contract, DP2 after `DP2 Due (months)` |
@@ -85,7 +85,10 @@ Grand Total      = Final Unit Price + Maintenance
 The schedule groups installments into "Year 1, Year 2…" counted from the first installment. A plan
 with bullets or a yearly increase is defined per contract year, so it is grouped by contract year
 instead (months 1–12 = Year 1): every bullet closes its year, and every backloaded year has one
-installment amount.
+installment amount. A plan whose installments start a whole year after the contract (month 12) has
+a grace year: Year 1 shows "Grace period — no installments" and the installments start in Year 2.
+No installment is shown past the plan's `Years`: one due on the final anniversary stays in the last
+year.
 
 Rows with problems are skipped and listed in a banner with their row numbers; the rest still
 loads. If a plan's payments don't add up to the final price, the page shows a warning with the

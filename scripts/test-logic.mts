@@ -77,6 +77,12 @@ for (const p of data.projects) {
       check(`[${label}] last balance = 0`, Math.round(r.rows[r.rows.length - 1].balance), 0);
     }
     check(`[${label}] no negative amount`, r.rows.every((x) => x.amount >= 0), true);
+    // the schedule never shows a year past the plan's Years
+    check(
+      `[${label}] no year past Years`,
+      pl.years <= 0 || r.rows.every((x) => x.code.startsWith("BUL") || x.year <= Math.ceil(pl.years)),
+      true,
+    );
 
     // maintenance on the right basis, rows sum to total
     const mBasePrice = pl.maintenanceBasis === "original" ? PRICE : r.finalPrice;
@@ -424,15 +430,15 @@ console.log("\nThe Mornings new plans (Nov 2026):");
       if (pl.monthsToFirstInstallment === 12) {
         // A1: Year 1 is the empty grace year, so the installments start in
         // Year 2 and come four a year; the last one, due on the plan's last
-        // anniversary (month 84 / 96), sits alone in the year after.
+        // anniversary (month 84 / 96), stays in the plan's last year.
         const perYear = new Map<number, number>();
         r.rows.filter((x) => x.year > 0).forEach((x) => perYear.set(x.year, (perYear.get(x.year) ?? 0) + 1));
         check(`new plans: ${pl.label} — Year 1 is an empty grace year`, [r.graceYears, r.rows.find((x) => x.year > 0)?.year], [1, 2]);
-        const lastYear = key === "residential" ? 9 : 8;
+        const lastYear = key === "residential" ? 8 : 7;
         check(
-          `new plans: ${pl.label} — 4 installments a year in Years 2–${lastYear - 1}, 1 in Year ${lastYear}`,
+          `new plans: ${pl.label} — 4 installments a year in Years 2–${lastYear - 1}, 5 in Year ${lastYear}`,
           [...perYear],
-          [...Array.from({ length: lastYear - 2 }, (_, k) => [k + 2, 4]), [lastYear, 1]],
+          [...Array.from({ length: lastYear - 2 }, (_, k) => [k + 2, 4]), [lastYear, 5]],
         );
       }
       // 10% maintenance = 1,000,000 in four payments of 250,000
